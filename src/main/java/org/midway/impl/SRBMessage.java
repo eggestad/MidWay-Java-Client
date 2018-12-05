@@ -1,9 +1,11 @@
 package org.midway.impl;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -103,50 +105,45 @@ public class SRBMessage extends HashMap<String, byte[]> {
             throw new IllegalStateException("illegal marker command");
         return true;
     }
-
-    public int parse(char[] messagestream) {
+    private static  String regexMarker = "[" + "\\" + SRB_NOTIFICATIONMARKER + 
+    		"\\" + SRB_REQUESTMARKER + 
+    			"\\"  + SRB_RESPONSEMARKER + 
+    			"\\"  + SRB_REJECTMARKER + 
+    			"]";
+    
+    public int parse(String messagestream) throws ParseException {
     	clear();
-    	
-    	int markerpos = -1;
-    	int endpos = -1;
-    	int len = messagestream.length;
-    	for (int i = 0; i < len; i++) {
-    		if (markerpos == -1 ) {
-    			switch (messagestream[i]) {
-    			case SRB_NOTIFICATIONMARKER:
-    				marker = SRB_NOTIFICATIONMARKER;
-    				markerpos = i;
-    				break;
-    			case SRB_REQUESTMARKER:
-    				marker = SRB_REQUESTMARKER;
-    				markerpos = i;
-    				break;
-    			case SRB_RESPONSEMARKER:
-    				marker = SRB_RESPONSEMARKER;
-    				markerpos = i;
-    				break;
-    			case SRB_REJECTMARKER:
-    				marker = SRB_REJECTMARKER;
-    				markerpos = i;
-    				break;    			
-    			}
-    		}
-    		
-    		if (messagestream[i] == '\n' && messagestream[i-1] == '\r') {
-    			endpos = i;
-    			command = new String(messagestream, 0, markerpos-1);
-    			String paramStr = new String(messagestream, markerpos+1, endpos - markerpos-3);
-    			String[] params = paramStr.split("&");
-    			for (String s : params) {
-    				String[] kv = s.split("=");
-    				put(kv[0], byteArrayFromURLString(kv[1]));
-    			}
-    		}
-    	}
+    	//regexMarker = "[^\\s]";
+    	//regexMarker = "[^A-Z ]";
+    	try {
+			Timber.d("parsing %s %s", messagestream, regexMarker);		
+			String[] firstsplit = messagestream.split(regexMarker, 2);
+			if (firstsplit.length != 2) throw new ParseException("Message have no marker", 0);
+			command = firstsplit[0];
+			marker = messagestream.charAt(command.length());
+			
+			String fields = URLDecoder.decode(firstsplit[1], "utf-8");
+			command = firstsplit[0];
+			
+			String[] params = firstsplit[1].split("&");
+			for (String s : params) {
+				String[] kv = s.split("=");
+				put(kv[0], URLDecoder.decode(kv[1], "utf-8").getBytes());
+			}
+			Timber.d("parsed %s", this);
+		} catch (UnsupportedEncodingException e) {
+			Timber.e("can't happen, Java RE don't understand utf-8");
+		}
     	return -1;
     	
     }
-    public void send(BufferedOutputStream bos) throws IOException {
+   
+    
+    public void send(BufferedOutputStream bbos) throws IOException {
+    	Timber.d("sending message %s", this);
+    	
+    	ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    	
         synchronized (bos) {
 			            byte[] barr;
             barr = command.getBytes();
@@ -169,7 +166,9 @@ public class SRBMessage extends HashMap<String, byte[]> {
             }
             bos.write('\r');
             bos.write('\n');
-            bos.flush();
+        	Timber.d("sending message %s", new String(bos.toByteArray()));
+        	bbos.write(bos.toByteArray());
+            bbos.flush();
         }
     }
 
@@ -398,5 +397,25 @@ public class SRBMessage extends HashMap<String, byte[]> {
 	public boolean getMore() {
 		// 
 		return false;
+	}
+	
+	@Override
+	public String toString() {
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append(command);
+		sb.append(marker);
+		boolean first = true;
+		for (String k : keySet()) {
+
+            if (first) 
+                first = false;
+            else
+            	sb.append('&');
+        	sb.append(k);
+        	sb.append("=");
+        	sb.append(new String(get(k)));
+        }
+        return sb.toString();
 	}
 }

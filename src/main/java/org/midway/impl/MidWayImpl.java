@@ -1,16 +1,18 @@
 package org.midway.impl;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
 import java.net.URI;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
 
@@ -26,42 +28,51 @@ public class MidWayImpl {
 	private Socket connection;
 	private BufferedOutputStream connbufout, bos;
 	private boolean shutdown = false;
-	
+
 	private int queuesize = 10000;
 
 	private long lasthandle = 1000;
-	
+
 	ArrayBlockingQueue<SRBMessage> sendqueue;
 	SendThread senderthread ;
 	RecvThread receiverThread;
-	
+
+
+	public MidWayImpl() {
+		Timber.plant(new Timber.DebugTree());		
+		Timber.d("start");
+	}
 	public final void attach(URI uri, String name, boolean useThreads) throws Exception{
 
-		
+		Timber.d("start attach {} {} {}", uri, name, useThreads);
+		Timber.d("start attach %s %s %s", uri, name, useThreads);
+
 		// decode IP and port;
 		String scheme = uri.getScheme();
 		if ( ! scheme.equalsIgnoreCase("srbp")) 
 			throw new ProtocolException("protocol " + scheme + " not supported");
-		
+
 		int port= uri.getPort();
 		if (port == -1) port = MidWay.BROKERPORT;
-		
+
 		String host = uri.getHost();
-		
+
 		InetAddress addr = InetAddress.getByName(host);
+		Timber.d("connecting to %s:%d", addr, port);
 		connection = new Socket(addr, port);
 		connection.setTcpNoDelay(true);
 		connection.setKeepAlive(true);
-				
-		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
-			
-		// read SRB READY
 
+		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
+		
+		// read SRB READY
+		SRBMessage msg = processInMessage();
+		
 		// send SRB INIT
 
 		// read SRC INIT OK
 
-		
+
 		this.useThreads = useThreads;
 		if (useThreads) {
 			sendqueue =  new ArrayBlockingQueue<SRBMessage>(queuesize);
@@ -69,7 +80,10 @@ public class MidWayImpl {
 			receiverThread = new RecvThread();
 			senderthread.start();
 			receiverThread.start();
+		} else {
+			
 		}
+		Timber.d("end attach");
 
 	}
 
@@ -83,13 +97,13 @@ public class MidWayImpl {
 		connbufout = null;
 	}
 
-	public  MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
+	public MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
 		// clear MORE flag is set
 		long hdl = acall( servicename, data, null,  flags);
 		return fetch(hdl);
 	}
 
-	
+
 	// TODO: !!!!! This break if MULTIPLE and a second reply comes and the first is not fetched!
 	private class MWPendingReply {
 		long handle;
@@ -99,9 +113,9 @@ public class MidWayImpl {
 		Boolean success = null;
 		MidWayServiceReplyListener listener;
 		boolean more;
-		
+
 		ArrayList<MidWayReply> readyReplies = new ArrayList<MidWayReply>();
-		
+
 		public boolean isReady() {
 			return success != null && pendingDataChunks == 0;
 		}
@@ -113,6 +127,7 @@ public class MidWayImpl {
 			success = null;
 			more = false;
 		}
+		
 		public MidWayReply getReply() {
 			MidWayReply rpl = new MidWayReply();
 			rpl.more = more;
@@ -139,7 +154,7 @@ public class MidWayImpl {
 			MidWayServiceReplyListener listener, int flags) throws Exception {
 		long handle = 0;
 		if (data == null) data = new byte[0];
-		
+
 		if ( (flags & MidWay.NOREPLY) != 0 || data.length > MAXDATAPERCHUNK) {
 			handle = lasthandle ++;
 			if (handle > 0xFFFFFFF) handle = 1000;
@@ -152,7 +167,7 @@ public class MidWayImpl {
 			pendingServiceCalls.put(handle, pending);
 		}
 
-		
+
 		int chunks = data.length / MAXDATAPERCHUNK;
 		boolean multiple = (flags & MidWay.MULTIPLE) > 0;
 		byte[] chunk = data;
@@ -160,10 +175,10 @@ public class MidWayImpl {
 			chunk =  Arrays.copyOfRange(data, 0, MAXDATAPERCHUNK);
 		}
 		SRBMessage msg = SRBMessage.makeCallReq(servicename, data, chunks, handle,multiple, 0);
-		
+
 		if (useThreads) sendqueue.put(msg);
 		else msg.send(bos);
-		
+
 		int offset = MAXDATAPERCHUNK;
 		while (chunks  >= 0) {
 			chunk =  Arrays.copyOfRange(data, offset, Math.min(data.length-offset, MAXDATAPERCHUNK));
@@ -200,7 +215,7 @@ public class MidWayImpl {
 			try {
 				while(!shutdown)
 					processInMessage();
-			} catch (IOException e) {
+			} catch (IOException | ParseException e) {
 				// TODO reconnect??
 				e.printStackTrace();
 			}
@@ -208,41 +223,59 @@ public class MidWayImpl {
 	}
 
 	StringBuffer messagebuffer  = new StringBuffer();
-	
-	private  void processInMessage() throws IOException {
+
+	private  SRBMessage processInMessage() throws IOException, ParseException {
 		InputStream is = connection.getInputStream();
 		
+        BufferedReader receiveRead = new BufferedReader(new InputStreamReader(is));
+
+        
+        String line = receiveRead.readLine();
+		Timber.d("got message %s", line);
+
+        SRBMessage msg = new SRBMessage();
+		msg.parse(line);
+		Timber.d("got message %s", msg);
+		return msg;
 		// drain socket, or block if there was nothing
-		do {
-			byte[] buf = new byte[128*1024];
-			int read = is.read(buf);
-			if (read == -1) throw new IOException("Connection broken");
-			String part = new String(buf, 0, read);
+//		do {
+//			byte[] buf = new byte[128*1024];
+//			int read = is.read(buf);
+//			if (read == -1) throw new IOException("Connection broken");
+//			String part = new String(buf, 0, read);
+//
+//			messagebuffer.append(part);
+//		} while (is.available() > 0);
+//		
+//		int eomidx;
+//		while ((eomidx = messagebuffer.indexOf(SRBMessage.SRB_MESSAGEBOUNDRY)) != -1) {
+//
+//			SRBMessage msg = new SRBMessage();
+//			char[] dst = new char[eomidx+2];
+//			messagebuffer.getChars(0, eomidx+2, dst, 0);
+//			msg.parse(dst); 
+//			Timber.d("got message %s", msg);
+//			messagebuffer.delete(0,  eomidx+1);
+//			return msg;
+//			java.nio.
+//			
+// 		}
 
-			messagebuffer.append(part);
-		} while (is.available() > 0);
-			
-		int eomidx;
-		while ((eomidx = messagebuffer.indexOf(SRBMessage.SRB_MESSAGEBOUNDRY)) != -1) {
+	} 
+	
+	void doSRBMessage(SRBMessage msg) {
+		if (msg.command.equals("EVENT"))
+			doEvent(msg);
+		if (msg.command.equals("SVCCALL"))
+			doSvcCallReply(msg);
+		if (msg.command.equals("SVCDATA"))
+			doSvcCallReply(msg);
 		
-			SRBMessage msg = new SRBMessage();
-			char[] dst = new char[eomidx+2];
-			messagebuffer.getChars(0, eomidx+2, dst, 0);
-			msg.parse(dst); 
-					
-			if (msg.command.equals("EVENT"))
-				doEvent(msg);
-			if (msg.command.equals("SVCCALL"))
-				doSvcCallReply(msg);
-			if (msg.command.equals("SVCDATA"))
-				doSvcCallReply(msg);
-			
-			if (msg.command.equals("TERM"))
-				doShutdown(msg);
-			messagebuffer.delete(0,  eomidx+1);
-		}
-
-	}
+		if (msg.command.equals("TERM"))
+			doShutdown(msg);
+	    }
+	
+	
 	private void doShutdown(SRBMessage msg) {
 		shutdown = true;
 		try {
@@ -253,95 +286,95 @@ public class MidWayImpl {
 		}
 		connection = null;
 	}
-	    private void doEvent(SRBMessage msg) {
-	        //lookuplistener;
-	        //call_listener;
-	    }
+	private void doEvent(SRBMessage msg) {
+		//lookuplistener;
+		//call_listener;
+	}
 
-	    private void doSvcCallReply(SRBMessage msg) {
-	    	long hdl = msg.getHandle();
-	    	
-	    	MWPendingReply pending = pendingServiceCalls.get(hdl);
-	    	
-	    	synchronized (pending) {
-	    		byte[] data = msg.getData();
-	    		int chunks = msg.getChunks();
+	private void doSvcCallReply(SRBMessage msg) {
+		long hdl = msg.getHandle();
 
-	    		if (data != null) pending.data.add(data);
-	    		pending.pendingDataChunks = chunks;
+		MWPendingReply pending = pendingServiceCalls.get(hdl);
 
-	    		if (msg.command.equals(SRBMessage.SRB_SVCCALL)) {
-	    			pending.appRC = msg.getAppRC();
-	    			int rc = msg.getReturnCode();
-	    			
-	    			pending.more = rc == MidWay.MORE;
-	    			pending.success = ! (rc == MidWay.FAIL);
-	    		}
+		synchronized (pending) {
+			byte[] data = msg.getData();
+			int chunks = msg.getChunks();
 
-	    		if (pending.isReady() ) {
-	    			if (pending.listener != null) {
+			if (data != null) pending.data.add(data);
+			pending.pendingDataChunks = chunks;
 
-	    				if (!pending.more)
-	    					pendingServiceCalls.remove(hdl);
+			if (msg.command.equals(SRBMessage.SRB_SVCCALL)) {
+				pending.appRC = msg.getAppRC();
+				int rc = msg.getReturnCode();
 
-	    				MidWayReply rpl = pending.getReply();
-	    				pending.listener.receive(rpl);
-	    			} else {
-	    				if (useThreads) {
+				pending.more = rc == MidWay.MORE;
+				pending.success = ! (rc == MidWay.FAIL);
+			}
 
-	    					pending.notify();
+			if (pending.isReady() ) {
+				if (pending.listener != null) {
 
-	    				}
-	    			}
-	    		}
-	    	}
-	    }
-	   
+					if (!pending.more)
+						pendingServiceCalls.remove(hdl);
 
-	        
-	    public MidWayReply fetch(long handle) throws Exception {
+					MidWayReply rpl = pending.getReply();
+					pending.listener.receive(rpl);
+				} else {
+					if (useThreads) {
 
-	        MWPendingReply pending = pendingServiceCalls.get(handle);
-	        MidWayReply rpl;
+						pending.notify();
 
-	        if (! useThreads  && connection.getInputStream().available() > 0)
-	        	processInMessage();
-	        
-	        synchronized(pending) {
-	        	
-	        	while (!(pending.isReady())) {
-	        		if (useThreads) {                
-	            		pending.wait();
-	            	} else {
-	            		processInMessage();
-	            	}
-
-	        	}
-	        	
-	        	if (!pending.more)
-	        		pendingServiceCalls.remove(handle);
-	        	rpl = pending.getReply();
-	        	
-	        }
-	        return rpl;
-	    }
-
-	    HashMap<MidWayEventListener,Pattern> eventlisteners = new HashMap<MidWayEventListener, Pattern >();
-	    
-	    public final void subscribe(Pattern regex, MidWayEventListener listener) {
-
-	    	eventlisteners.put(listener, regex);
-	    	// write SUBSCRIBE message
-	    	SRBMessage.makeSubcribeReq(regex.toString(), false);
-	    }
+					}
+				}
+			}
+		}
+	}
 
 
-	    public final void unsubscribe(MidWayEventListener listener) {
-	        // find listener
-	    	Pattern regex = eventlisteners.remove(listener);
-	        // write UNSUBSCRIBE message
-	    	SRBMessage.makeSubcribeReq(regex.toString(), true);
-	    }
-	    
-	   
+
+	public MidWayReply fetch(long handle) throws Exception {
+
+		MWPendingReply pending = pendingServiceCalls.get(handle);
+		MidWayReply rpl;
+
+		if (! useThreads  && connection.getInputStream().available() > 0)
+			processInMessage();
+
+		synchronized(pending) {
+
+			while (!(pending.isReady())) {
+				if (useThreads) {                
+					pending.wait();
+				} else {
+					processInMessage();
+				}
+
+			}
+
+			if (!pending.more)
+				pendingServiceCalls.remove(handle);
+			rpl = pending.getReply();
+
+		}
+		return rpl;
+	}
+
+	HashMap<MidWayEventListener,Pattern> eventlisteners = new HashMap<MidWayEventListener, Pattern >();
+
+	public final void subscribe(Pattern regex, MidWayEventListener listener) {
+
+		eventlisteners.put(listener, regex);
+		// write SUBSCRIBE message
+		SRBMessage.makeSubcribeReq(regex.toString(), false);
+	}
+
+
+	public final void unsubscribe(MidWayEventListener listener) {
+		// find listener
+		Pattern regex = eventlisteners.remove(listener);
+		// write UNSUBSCRIBE message
+		SRBMessage.makeSubcribeReq(regex.toString(), true);
+	}
+
+
 }

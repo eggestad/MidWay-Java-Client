@@ -33,23 +33,27 @@ public class MidWay{
     public static final int SUCCESS = 1;
     public static final int MORE = 2;
     
-    public static final int BROKERPORT = 102;
+    public static final int BROKERPORT = 1102;
 
     private  MidWayImpl driver;
     
     public MidWay() {
-    	MidWayImpl driver = new MidWayImpl(); 
+    	System.out.println("test");
+    	driver = new MidWayImpl(); 
     }
 
     public MidWay(URI uri) throws Exception {
+    	this();
     	attach(uri, "", false);
     }
     
     public MidWay(URI uri, String name) throws Exception {
+    	this();
         attach(uri, name, false);
     }
 
     public MidWay(URI uri, String name, boolean useThreads) throws Exception {
+    	this();
         attach(uri, name, useThreads);
     }
 
@@ -65,5 +69,8 @@ public class MidWay{
 		driver.attach( uri,  name,  useThreads);		
 	}
 
-  	
+	public void detach() throws Exception {
+		driver.detach();
+	}
+	  	
 }
