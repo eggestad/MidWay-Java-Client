@@ -179,11 +179,11 @@ public class SRBMessage extends HashMap<String, byte[]> {
         return this.command;
     }
      
-    private void put(String value, int i) {
+    public void put(String value, int i) {
 		put(value, String.format("%d", i));		
 	}
 
-	private void put(String key, String value) {		
+	public void put(String key, String value) {		
 		put(key, value.getBytes());
 	}
    
@@ -198,17 +198,23 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
-    public static SRBMessage  makeInitReq(String name) {
+    public static SRBMessage  makeInitReq(String name, String domain, String instance) {
     	if (name == null) name = "";
     	SRBMessage msg = new SRBMessage();
     	msg.command = SRB_INIT;
     	msg.marker = SRB_REQUESTMARKER;
-    	msg.put(SRB_PARAM_NAME, name);
     	msg.put(SRB_PARAM_TYPE, "client");
     	msg.put(SRB_PARAM_VERSION, SRBPROTOCOLVERSION);
+    	if (name != null)
+    		msg.put(SRB_PARAM_NAME, name);
+    	if (domain != null)
+    		msg.put(SRB_PARAM_DOMAIN, domain);
+    	if (instance!= null)
+    		msg.put(SRB_PARAM_INSTANCE, instance);
     	return msg;
     }
 
+   
     public static SRBMessage  makeCallReq(String svcname, byte[] data, int chunks, 
     		long handle, boolean multiple, int secstolive) {
     	if (svcname == null) throw new IllegalArgumentException("service name missing");

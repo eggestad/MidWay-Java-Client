@@ -69,9 +69,11 @@ public class MidWayImpl {
 		SRBMessage msg = processInMessage();
 		
 		// send SRB INIT
-
+		msg =SRBMessage.makeInitReq("Java Client", "test", null);
+		msg.send(connbufout);
+		
 		// read SRC INIT OK
-
+		msg = processInMessage();
 
 		this.useThreads = useThreads;
 		if (useThreads) {
