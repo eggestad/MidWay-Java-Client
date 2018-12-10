@@ -205,12 +205,14 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	msg.marker = SRB_REQUESTMARKER;
     	msg.put(SRB_PARAM_TYPE, "client");
     	msg.put(SRB_PARAM_VERSION, SRBPROTOCOLVERSION);
+    	
     	if (name != null)
-    		msg.put(SRB_PARAM_NAME, name);
+    		msg.put(SRB_PARAM_NAME, name); 
+    	if (instance != null)
+    		msg.put(SRB_PARAM_INSTANCE, instance);
     	if (domain != null)
     		msg.put(SRB_PARAM_DOMAIN, domain);
-    	if (instance!= null)
-    		msg.put(SRB_PARAM_INSTANCE, instance);
+    	
     	return msg;
     }
 

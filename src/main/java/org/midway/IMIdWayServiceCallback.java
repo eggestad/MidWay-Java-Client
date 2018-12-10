@@ -8,17 +8,8 @@ package org.midway;
  * file 'LICENSE.txt', which is part of this source code package.
  */
 
-public class MidWayReply {
+public interface IMIdWayServiceCallback {
+
+	public void apply(MidWayReply reply);
 	
-	public MidWayReply() {
-		appreturncode = null;
-		data = null;
-		more = false;
-		success = false;
-	}
-    public byte[] data;
-    public Integer appreturncode;
-    public boolean more;
-    public boolean success;
-    
 }

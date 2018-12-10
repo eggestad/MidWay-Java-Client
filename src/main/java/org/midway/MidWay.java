@@ -72,5 +72,29 @@ public class MidWay{
 	public void detach() throws Exception {
 		driver.detach();
 	}
-	  	
+	
+	public MidWayReply  call(String service, byte[] data) throws Exception {
+		return driver.call(service, data, 0);
+	}
+	
+
+	public void acall(String service, byte[] data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+		driver.acall(service, data, listener, flags);
+		return ;
+	}
+	
+	public void acall(String service, byte[] data, MidWayServiceReplyListener listener) throws Exception {
+		acall(service, data, listener, 0);
+		return; 
+	}
+	
+	public void acall(String service, String data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+		driver.acall(service, data.getBytes(), listener, flags);
+		return ;
+	}
+	
+	public void acall(String service, String data, MidWayServiceReplyListener listener) throws Exception {
+		acall(service, data.getBytes(), listener, 0);
+		return; 
+	}
 }

@@ -23,6 +23,9 @@ public class MidWayTest {
 		try {
 			URI uri = new URI("srbp:/terje");
 			MidWay mw = new MidWay(uri);
+			
+			mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+			
 			mw.detach();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
