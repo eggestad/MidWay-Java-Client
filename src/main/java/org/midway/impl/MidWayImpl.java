@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,7 +72,7 @@ public class MidWayImpl {
 		
 		// send SRB INIT
  
-		msg = SRBMessage.makeInitReq("java pure client", "test", "terje");
+		msg = SRBMessage.makeInitReq("java pure client", "test", null);
  		msg.send(connbufout);
 		
 		// read SRC INIT OK
@@ -152,19 +153,22 @@ public class MidWayImpl {
 		}
 	}
 
-	HashMap<Long, MWPendingReply> pendingServiceCalls;
+	HashMap<Long, MWPendingReply> pendingServiceCalls = new HashMap<Long, MidWayImpl.MWPendingReply>();
 
 	public synchronized long acall(String servicename, byte[] data,
 			MidWayServiceReplyListener listener, int flags) throws Exception {
+		
 		long handle = 0;
 		if (data == null) data = new byte[0];
 
-		if ( (flags & MidWay.NOREPLY) != 0 || data.length > MAXDATAPERCHUNK) {
+		boolean noreply = (flags & MidWay.NOREPLY) != 0;
+
+		if ( !noreply || data.length > MAXDATAPERCHUNK) {
 			handle = lasthandle ++;
 			if (handle > 0xFFFFFFF) handle = 1000;
 			lasthandle = handle;
 		}
-		if ( (flags & MidWay.NOREPLY) != 0) { 
+		if ( !noreply ) { 
 			MWPendingReply pending = new MWPendingReply();
 			pending.listener = listener;
 			pending.handle = handle;

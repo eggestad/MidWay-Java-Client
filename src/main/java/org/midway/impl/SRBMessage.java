@@ -219,6 +219,8 @@ public class SRBMessage extends HashMap<String, byte[]> {
    
     public static SRBMessage  makeCallReq(String svcname, byte[] data, int chunks, 
     		long handle, boolean multiple, int secstolive) {
+    	
+    	Timber.d("makeing call req mesg: %s dlen=%d, chunks=%d, handle=%d", svcname, data.length, chunks, handle);
     	if (svcname == null) throw new IllegalArgumentException("service name missing");
     	if (data == null && chunks > 0) throw new IllegalArgumentException("no data with chunks");
     	if (handle == 0 && chunks > 0) throw new IllegalArgumentException("no handle with chunks");
@@ -226,7 +228,9 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	SRBMessage msg = new SRBMessage();
     	msg.command = SRB_SVCCALL;
     	msg.marker = SRB_REQUESTMARKER;
-    	if (data != null)
+		msg.put(SRB_PARAM_SVCNAME, svcname);
+
+    	if (data != null && data.length > 0)
     		msg.put(SRB_PARAM_DATA, data);
     	if (chunks > 0)
     		msg.put(SRB_PARAM_DATACHUNKS, chunks);
@@ -235,9 +239,10 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	if (secstolive > 0)
     		msg.put(SRB_PARAM_SECTOLIVE, secstolive);
     	if (handle != 0) 
-    		msg.put(SRB_PARAM_HANDLE, String.format("%8.8x", handle));
+    		msg.put(SRB_PARAM_HANDLE, String.format("%08x", handle));
     	else 
     		msg.marker = SRB_NOTIFICATIONMARKER;
+    	Timber.d("made %s", msg);
     	return msg;
     }
 
@@ -407,6 +412,8 @@ public class SRBMessage extends HashMap<String, byte[]> {
 		return false;
 	}
 	
+	
+	 
 	@Override
 	public String toString() {
 		

@@ -21,10 +21,11 @@ public class MidWayTest {
 	@Test
 	public void testMidWay() {
 		try {
-			URI uri = new URI("srbp:/terje");
+			URI uri = new URI("srbp:/test");
 			MidWay mw = new MidWay(uri);
 			
-			mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+			//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+			mw.acall("testchargen", "100", (reply)->  System.out.println(reply) );
 			
 			mw.detach();
 		} catch (Exception e) {
