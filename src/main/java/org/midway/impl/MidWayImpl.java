@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
 
+import org.midway.IMIdWayServiceCallback;
 import org.midway.MidWay;
 import org.midway.MidWayEventListener;
 import org.midway.MidWayReply;
@@ -26,7 +27,7 @@ public class MidWayImpl {
 	private static final int MAXDATAPERCHUNK = 3000;
 	private boolean useThreads = false;
 	private Socket connection;
-	private BufferedOutputStream connbufout, bos;
+	private BufferedOutputStream connbufout;
 	private boolean shutdown = false;
 
 	private int queuesize = 10000;
@@ -69,8 +70,11 @@ public class MidWayImpl {
 		SRBMessage msg = processInMessage();
 		
 		// send SRB INIT
-
+		msg = SRBMessage.makeInitReq("java pure client", "test", "terje");
+		msg.send(connbufout);
+		
 		// read SRC INIT OK
+		msg = processInMessage();
 
 
 		this.useThreads = useThreads;
@@ -169,6 +173,7 @@ public class MidWayImpl {
 
 
 		int chunks = data.length / MAXDATAPERCHUNK;
+		Timber.v("extra chunks to send %d", chunks);
 		boolean multiple = (flags & MidWay.MULTIPLE) > 0;
 		byte[] chunk = data;
 		if (chunks > 0) {
@@ -177,19 +182,20 @@ public class MidWayImpl {
 		SRBMessage msg = SRBMessage.makeCallReq(servicename, data, chunks, handle,multiple, 0);
 
 		if (useThreads) sendqueue.put(msg);
-		else msg.send(bos);
+		else msg.send(connbufout);
 
 		int offset = MAXDATAPERCHUNK;
-		while (chunks  >= 0) {
+		while (chunks  > 0) {
 			chunk =  Arrays.copyOfRange(data, offset, Math.min(data.length-offset, MAXDATAPERCHUNK));
 			msg = SRBMessage.makeData(servicename, data, chunks, handle);
 			if (useThreads) sendqueue.put(msg);
-			else msg.send(bos);
+			else msg.send(connbufout);
 			offset += MAXDATAPERCHUNK;
 			chunks--;
 		}
 		return handle;
 	}
+
 
 	private class SendThread extends Thread {
 		public void run() {

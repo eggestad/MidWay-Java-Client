@@ -198,7 +198,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
-    public static SRBMessage  makeInitReq(String name) {
+    public static SRBMessage  makeInitReq(String name, String domain, String instance) {
     	if (name == null) name = "";
     	SRBMessage msg = new SRBMessage();
     	msg.command = SRB_INIT;
@@ -206,6 +206,11 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	msg.put(SRB_PARAM_NAME, name);
     	msg.put(SRB_PARAM_TYPE, "client");
     	msg.put(SRB_PARAM_VERSION, SRBPROTOCOLVERSION);
+    	if (instance != null)
+    		msg.put(SRB_PARAM_INSTANCE, instance);
+    	if (domain != null)
+    		msg.put(SRB_PARAM_DOMAIN, domain);
+    	
     	return msg;
     }
 
