@@ -229,6 +229,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	msg.command = SRB_SVCCALL;
     	msg.marker = SRB_REQUESTMARKER;
 		msg.put(SRB_PARAM_SVCNAME, svcname);
+		msg.put(SRB_PARAM_HOPS, 0);
 
     	if (data != null && data.length > 0)
     		msg.put(SRB_PARAM_DATA, data);
@@ -260,7 +261,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
     
-    public static SRBMessage  makeSubcribeReq(String regexp, boolean unsubscribe) {
+    public static SRBMessage  makeSubscribeReq(String regexp, boolean unsubscribe) {
     	if (regexp == null) throw new IllegalArgumentException("missing regexp");
     	SRBMessage msg = new SRBMessage();
     	if(unsubscribe)

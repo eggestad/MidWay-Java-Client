@@ -68,7 +68,7 @@ public class MidWayImpl {
 		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
 		
 		// read SRB READY
-		SRBMessage msg = processInMessage();
+		SRBMessage msg = getNextSRBMessage();
 		
 		// send SRB INIT
  
@@ -76,7 +76,7 @@ public class MidWayImpl {
  		msg.send(connbufout);
 		
 		// read SRC INIT OK
-		msg = processInMessage();
+		msg = getNextSRBMessage();
 
 		this.useThreads = useThreads;
 		if (useThreads) {
@@ -105,7 +105,7 @@ public class MidWayImpl {
 	public MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
 		// clear MORE flag is set
 		long hdl = acall( servicename, data, null,  flags);
-		return fetch(hdl);
+		return fetchx(hdl);
 	}
 
 
@@ -165,7 +165,7 @@ public class MidWayImpl {
 
 		if ( !noreply || data.length > MAXDATAPERCHUNK) {
 			handle = lasthandle ++;
-			if (handle > 0xFFFFFFF) handle = 1000;
+			if (handle > 0xFFFFFF) handle = 1000;
 			lasthandle = handle;
 		}
 		if ( !noreply ) { 
@@ -224,7 +224,7 @@ public class MidWayImpl {
 		public void run() {
 			try {
 				while(!shutdown)
-					processInMessage();
+					getNextSRBMessage();
 			} catch (IOException | ParseException e) {
 				// TODO reconnect??
 				e.printStackTrace();
@@ -234,14 +234,17 @@ public class MidWayImpl {
 
 	StringBuffer messagebuffer  = new StringBuffer();
 
-	private  SRBMessage processInMessage() throws IOException, ParseException {
+	private  SRBMessage getNextSRBMessage() throws IOException, ParseException {
 		InputStream is = connection.getInputStream();
 		
         BufferedReader receiveRead = new BufferedReader(new InputStreamReader(is));
-
         
+        Timber.d("starting read message with %d available ready = %b", is.available(), receiveRead.ready());
         String line = receiveRead.readLine();
-		Timber.d("got message %s", line);
+        
+        if (line == null)  throw new IOException("server connection closed");
+       
+        Timber.d("got message %s", line);
 
         SRBMessage msg = new SRBMessage();
 		msg.parse(line);
@@ -340,15 +343,60 @@ public class MidWayImpl {
 		}
 	}
 
+	public int drain() {
+		try {
+			if ( connection.getInputStream().available() > 0)
+				getNextSRBMessage();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return 0;
+	}
+	public boolean fetch(long handle) throws Exception {
 
-
-	public MidWayReply fetch(long handle) throws Exception {
+		if (useThreads) throw  new Exception("Using threads, no need to call fetch");
+		//MWPendingReply pending = pendingServiceCalls.get(handle);
+		int pendingsize = pendingServiceCalls.size();
+		
+		if (pendingsize == 0) throw new Exception("No pending replies");
+		SRBMessage msg;
+		
+		msg = getNextSRBMessage();
+		doSRBMessage(msg);
+		
+		if (pendingsize >  pendingServiceCalls.size()) return true;
+		
+//		synchronized(pending) {
+//
+//			while (!(pending.isReady())) {
+//				if (useThreads) {                
+//					pending.wait();
+//				} else {
+//					processInMessage();
+//				}
+//
+//			}
+//
+//			if (!pending.more)
+//				pendingServiceCalls.remove(handle);
+//			rpl = pending.getReply();
+//
+//		}
+//		return rpl;
+		return false;
+	}
+	public MidWayReply fetchx(long handle) throws Exception {
 
 		MWPendingReply pending = pendingServiceCalls.get(handle);
 		MidWayReply rpl;
 
 		if (! useThreads  && connection.getInputStream().available() > 0)
-			processInMessage();
+			getNextSRBMessage();
 
 		synchronized(pending) {
 
@@ -356,7 +404,7 @@ public class MidWayImpl {
 				if (useThreads) {                
 					pending.wait();
 				} else {
-					processInMessage();
+					getNextSRBMessage();
 				}
 
 			}
@@ -375,7 +423,7 @@ public class MidWayImpl {
 
 		eventlisteners.put(listener, regex);
 		// write SUBSCRIBE message
-		SRBMessage.makeSubcribeReq(regex.toString(), false);
+		SRBMessage.makeSubscribeReq(regex.toString(), false);
 	}
 
 
@@ -383,7 +431,7 @@ public class MidWayImpl {
 		// find listener
 		Pattern regex = eventlisteners.remove(listener);
 		// write UNSUBSCRIBE message
-		SRBMessage.makeSubcribeReq(regex.toString(), true);
+		SRBMessage.makeSubscribeReq(regex.toString(), true);
 	}
 
 

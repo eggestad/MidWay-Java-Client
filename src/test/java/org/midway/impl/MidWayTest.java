@@ -26,8 +26,10 @@ public class MidWayTest {
 			
 			//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
 			mw.acall("testchargen", "100", (reply)->  System.out.println(reply) );
+			boolean brc = mw.fetch();
 			
 			mw.detach();
+			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -97,4 +97,12 @@ public class MidWay{
 		acall(service, data.getBytes(), listener, 0);
 		return; 
 	}
+	
+	
+	public boolean  fetch() throws Exception {
+		return driver.fetch(0);
+	}
+	public void fetch(int timeout) {
+		
+	}
 }
