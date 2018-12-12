@@ -21,4 +21,10 @@ public class MidWayReply {
     public boolean more;
     public boolean success;
     
+    @Override
+    public String toString() {
+
+    	return String.format("success:%b, more:%b apprc=%d data=(%d)%s", 
+    			success, more, appreturncode, data.length, new String(data));
+    }
 }

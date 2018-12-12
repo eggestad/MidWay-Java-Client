@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.text.ParseException;
@@ -46,9 +48,10 @@ public class MidWayImpl {
 	}
 	public final void attach(URI uri, String name, boolean useThreads) throws Exception{
 
-		Timber.d("start attach {} {} {}", uri, name, useThreads);
+		Timber.d("start attach uri %s %s %s %s", 
+				uri.getScheme(), uri.getHost(), uri.getPort(), uri.getPath());
 		Timber.d("start attach %s %s %s", uri, name, useThreads);
-
+ 
 		// decode IP and port;
 		String scheme = uri.getScheme();
 		if ( ! scheme.equalsIgnoreCase("srbp")) 
@@ -56,15 +59,34 @@ public class MidWayImpl {
 
 		int port= uri.getPort();
 		if (port == -1) port = MidWay.BROKERPORT;
-
 		String host = uri.getHost();
-
-		InetAddress addr = InetAddress.getByName(host);
-		Timber.d("connecting to %s:%d", addr, port);
-		connection = new Socket(addr, port);
-		connection.setTcpNoDelay(true);
-		connection.setKeepAlive(true);
-
+		if (host == null) host = "localhost";
+		String domain = uri.getPath();
+		if (domain != null) {
+			if (domain.startsWith("/")) 
+				domain.substring(1);
+		}
+		InetAddress addrs[] = InetAddress.getAllByName(host);
+		
+		
+		for (InetAddress addr : addrs) {
+			SocketAddress socketAddress = new InetSocketAddress(addr, port);
+			connection = new Socket();
+			Timber.d("connecting to %s", socketAddress);
+			
+			try {
+				connection.connect(socketAddress, 1000); 
+			} catch (Exception e) {
+				Timber.w("failed on connect");
+				continue;
+			}
+			 
+			connection.setTcpNoDelay(true);
+			connection.setKeepAlive(true);
+		}
+		if (connection == null || !connection.isConnected()) 
+			throw new IOException("unable to connect to server");
+		
 		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
 		
 		// read SRB READY
@@ -72,7 +94,7 @@ public class MidWayImpl {
 		
 		// send SRB INIT
  
-		msg = SRBMessage.makeInitReq("java pure client", "test", null);
+		msg = SRBMessage.makeInitReq("java pure client", domain, null);
  		msg.send(connbufout);
 		
 		// read SRC INIT OK
@@ -134,22 +156,22 @@ public class MidWayImpl {
 		}
 		
 		public MidWayReply getReply() {
-			MidWayReply rpl = new MidWayReply();
-			rpl.more = more;
-			rpl.success = success;
-			rpl.appreturncode = appRC;
+			MidWayReply reply = new MidWayReply();
+			reply.more = more;
+			reply.success = success;
+			reply.appreturncode = appRC;
 			int datalen = 0;
 			for (byte[] d : data ) {
 				datalen += d.length;
 			}
-			rpl.data = new byte[datalen];
+			reply.data = new byte[datalen];
 			int offset = 0;
 			for (byte[] d : data ) {
 				for (int i = 0; i < d.length ; i++) {
-					rpl.data[offset++] = d[i];
+					reply.data[offset++] = d[i];
 				}
 			}
-			return null;
+			return reply;
 		}
 	}
 
@@ -277,17 +299,26 @@ public class MidWayImpl {
 	} 
 	
 	void doSRBMessage(SRBMessage msg) {
-		if (msg.command.equals("EVENT"))
-			doEvent(msg);
-		if (msg.command.equals("SVCCALL"))
-			doSvcCallReply(msg);
-		if (msg.command.equals("SVCDATA"))
-			doSvcCallReply(msg);
 		
-		if (msg.command.equals("TERM"))
+		switch (msg.command) {
+		case SRBMessage.SRB_EVENT:
+			doEvent(msg);
+			break;
+		case SRBMessage.SRB_SVCCALL:
+		case SRBMessage.SRB_SVCDATA:
+			doSvcCallReply(msg);
+
+			break;
+		case   SRBMessage.SRB_TERM:
 			doShutdown(msg);
-	    }
+			break;
 	
+		default:
+			Timber.e("got SRB message with unknown command %s", msg.command);
+		}
+		return;
+	}
+		
 	
 	private void doShutdown(SRBMessage msg) {
 		shutdown = true;
@@ -306,9 +337,13 @@ public class MidWayImpl {
 
 	private void doSvcCallReply(SRBMessage msg) {
 		long hdl = msg.getHandle();
-
+		Timber.d("handle %x", hdl);
 		MWPendingReply pending = pendingServiceCalls.get(hdl);
 
+		if (pending == null) {
+			Timber.e("got unexpected svc call reply");
+			return;
+		}
 		synchronized (pending) {
 			byte[] data = msg.getData();
 			int chunks = msg.getChunks();
@@ -325,12 +360,14 @@ public class MidWayImpl {
 			}
 
 			if (pending.isReady() ) {
+				Timber.d("is ready");
 				if (pending.listener != null) {
 
 					if (!pending.more)
 						pendingServiceCalls.remove(hdl);
 
 					MidWayReply rpl = pending.getReply();
+					Timber.d("reply %s", rpl);
 					pending.listener.receive(rpl);
 				} else {
 					if (useThreads) {
@@ -368,7 +405,7 @@ public class MidWayImpl {
 		
 		msg = getNextSRBMessage();
 		doSRBMessage(msg);
-		
+		Timber.d("done one SRB message");
 		if (pendingsize >  pendingServiceCalls.size()) return true;
 		
 //		synchronized(pending) {
