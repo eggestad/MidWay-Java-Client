@@ -26,7 +26,7 @@ public class MidWayTest {
 			
 			//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
 			mw.acall("testchargen", "100", (reply)->  System.out.println("reply " + reply) );
-			boolean brc = mw.fetch();
+			while(!mw.fetch());
 			
 			mw.detach();
 			

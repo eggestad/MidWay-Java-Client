@@ -52,7 +52,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     public static final String SRB_PARAM_CLIENTNAME =  "CLIENTNAME";
     public static final String SRB_PARAM_CONVERSATIONAL =  "CONVERSATIONAL";
     public static final String SRB_PARAM_DATA =  "DATA";
-    public static final String SRB_PARAM_DATACHUNKS =  "DATACHUNKS";
+    public static final String SRB_PARAM_DATATOTAL =  "DATATOTAL";
     public static final String SRB_PARAM_DOMAIN =  "DOMAIN";
     public static final String SRB_PARAM_EVENTNAMEEVENTID =  "EVENTNAMEEVENTID";
     public static final String SRB_PARAM_GLOBALTRANID =  "GLOBALTRANID";
@@ -116,7 +116,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	//regexMarker = "[^\\s]";
     	//regexMarker = "[^A-Z ]";
     	try {
-			Timber.d("parsing %s %s", messagestream, regexMarker);		
+			//Timber.d("parsing %s %s", messagestream, regexMarker);		
 			String[] firstsplit = messagestream.split(regexMarker, 2);
 			if (firstsplit.length != 2) throw new ParseException("Message have no marker", 0);
 			command = firstsplit[0];
@@ -130,7 +130,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
 				String[] kv = s.split("=");
 				put(kv[0], URLDecoder.decode(kv[1], "utf-8").getBytes());
 			}
-			Timber.d("parsed %s", this);
+			//Timber.d("parsed %s", this);
 		} catch (UnsupportedEncodingException e) {
 			Timber.e("can't happen, Java RE don't understand utf-8");
 		}
@@ -234,7 +234,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	if (data != null && data.length > 0)
     		msg.put(SRB_PARAM_DATA, data);
     	if (chunks > 0)
-    		msg.put(SRB_PARAM_DATACHUNKS, chunks);
+    		msg.put(SRB_PARAM_DATATOTAL, chunks);
     	if (multiple)
     		msg.put(SRB_PARAM_MULTIPLE, "yes");
     	if (secstolive > 0)
@@ -256,7 +256,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	msg.marker = SRB_NOTIFICATIONMARKER;
 		msg.put(SRB_PARAM_DATA, data);
 		msg.put(SRB_PARAM_HANDLE, String.format("%8.8x", handle));
-		msg.put(SRB_PARAM_DATACHUNKS, chunks);
+		msg.put(SRB_PARAM_DATATOTAL, chunks);
 
     	return msg;
     }
@@ -387,9 +387,9 @@ public class SRBMessage extends HashMap<String, byte[]> {
 		return get(SRB_PARAM_DATA);		
 	}
 
-	public int getChunks() {
-		byte[] sHdl = get(SRB_PARAM_DATACHUNKS);
-		if (sHdl == null) return 0;
+	public Integer getDataTotal() {
+		byte[] sHdl = get(SRB_PARAM_DATATOTAL);
+		if (sHdl == null) return null;
 		String s = new String(sHdl);
 		return Integer.parseInt(s);
 	}
