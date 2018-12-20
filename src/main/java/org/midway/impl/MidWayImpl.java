@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.channels.SocketChannel;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -27,7 +28,7 @@ import org.midway.MidWayServiceReplyListener;
 
 
 public class MidWayImpl {
-	private static final int MAXDATAPERCHUNK = 3000;
+	private static final int MAXDATAPERCHUNK = 1000;
 	private boolean useThreads = false;
 	private Socket connection;
 	private BufferedOutputStream connbufout;
@@ -137,11 +138,24 @@ public class MidWayImpl {
 			MidWayServiceReplyListener listener, int flags) throws Exception {
 		
 		long handle = 0;
+		boolean multiple = (flags & MidWay.MULTIPLE) > 0;
 		if (data == null) data = new byte[0];
-
+		int totallength = data.length;
+		int chunks = totallength / MAXDATAPERCHUNK + 1;
+		ArrayList<byte[]> datachunks = new ArrayList<byte[]>(chunks);
+		
+		
+		for (int i = 0; i < chunks; i++) {			
+			byte[] chunk = data;	
+			int start = i*MAXDATAPERCHUNK;
+			int end = Math.min(data.length, (i+1)*MAXDATAPERCHUNK);
+			Timber.d("chunk %d  havd start=%d and end=%d", i, start, end);
+			chunk =  Arrays.copyOfRange(data, start, end);
+			datachunks.add(chunk);
+		}
+		Timber.v("extra chunks to send %d", datachunks.size()-1);		
 		boolean noreply = (flags & MidWay.NOREPLY) != 0;
-
-		if ( !noreply || data.length > MAXDATAPERCHUNK) {
+		if ( !noreply || datachunks.size() > 1) {
 			handle = lasthandle ++;
 			if (handle > 0xFFFFFF) handle = 1000;
 			lasthandle = handle;
@@ -154,26 +168,17 @@ public class MidWayImpl {
 		}
 
 
-		int chunks = data.length / MAXDATAPERCHUNK;
-		Timber.v("extra chunks to send %d", chunks);
-		boolean multiple = (flags & MidWay.MULTIPLE) > 0;
-		byte[] chunk = data;
-		if (chunks > 0) {
-			chunk =  Arrays.copyOfRange(data, 0, MAXDATAPERCHUNK);
-		}
-		SRBMessage msg = SRBMessage.makeCallReq(servicename, data, chunks, handle,multiple, 0);
+		
+		SRBMessage msg = SRBMessage.makeCallReq(servicename, datachunks.remove(0), totallength, handle,multiple, 0);
 
 		if (useThreads) sendqueue.put(msg);
 		else msg.send(connbufout);
 
 		int offset = MAXDATAPERCHUNK;
-		while (chunks  > 0) {
-			chunk =  Arrays.copyOfRange(data, offset, Math.min(data.length-offset, MAXDATAPERCHUNK));
-			msg = SRBMessage.makeData(servicename, data, chunks, handle);
+		while (datachunks.size() > 0) {			
+			msg = SRBMessage.makeData(servicename, datachunks.remove(0), handle);
 			if (useThreads) sendqueue.put(msg);
 			else msg.send(connbufout);
-			offset += MAXDATAPERCHUNK;
-			chunks--;
 		}
 		return handle;
 	}

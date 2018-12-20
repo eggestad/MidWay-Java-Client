@@ -141,7 +141,12 @@ public class SRBMessage extends HashMap<String, byte[]> {
     
     public void send(BufferedOutputStream bbos) throws IOException {
     	Timber.d("sending message %s", this);
-    	
+    	try {
+			Timber.d("datalen %d", this.getData().length);
+		} catch (Exception e) {
+			 
+		}
+
     	ByteArrayOutputStream bos = new ByteArrayOutputStream();
     	
         synchronized (bos) {
@@ -166,8 +171,9 @@ public class SRBMessage extends HashMap<String, byte[]> {
             }
             bos.write('\r');
             bos.write('\n');
-        	Timber.d("sending message %s", new String(bos.toByteArray()));
-        	bbos.write(bos.toByteArray());
+        	byte[] byteArray = bos.toByteArray();
+			Timber.d("sending message (%d) %s", byteArray.length, new String(byteArray));
+        	bbos.write(byteArray);
             bbos.flush();
         }
     }
@@ -217,13 +223,13 @@ public class SRBMessage extends HashMap<String, byte[]> {
     }
 
    
-    public static SRBMessage  makeCallReq(String svcname, byte[] data, int chunks, 
+    public static SRBMessage  makeCallReq(String svcname, byte[] data, int datatotal, 
     		long handle, boolean multiple, int secstolive) {
     	
-    	Timber.d("makeing call req mesg: %s dlen=%d, chunks=%d, handle=%d", svcname, data.length, chunks, handle);
+    	Timber.d("makeing call req mesg: %s dlen=%d, chunks=%d, handle=%d", svcname, data.length, datatotal, handle);
     	if (svcname == null) throw new IllegalArgumentException("service name missing");
-    	if (data == null && chunks > 0) throw new IllegalArgumentException("no data with chunks");
-    	if (handle == 0 && chunks > 0) throw new IllegalArgumentException("no handle with chunks");
+    	if (data == null && datatotal > 0) throw new IllegalArgumentException("no data with chunks");
+    	if (handle == 0 && datatotal > 0) throw new IllegalArgumentException("no handle with chunks");
     	
     	SRBMessage msg = new SRBMessage();
     	msg.command = SRB_SVCCALL;
@@ -233,8 +239,8 @@ public class SRBMessage extends HashMap<String, byte[]> {
 
     	if (data != null && data.length > 0)
     		msg.put(SRB_PARAM_DATA, data);
-    	if (chunks > 0)
-    		msg.put(SRB_PARAM_DATATOTAL, chunks);
+    	if (datatotal > 0)
+    		msg.put(SRB_PARAM_DATATOTAL, datatotal);
     	if (multiple)
     		msg.put(SRB_PARAM_MULTIPLE, "yes");
     	if (secstolive > 0)
@@ -247,7 +253,7 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
-    public static SRBMessage  makeData(String svcname, byte[] data, int chunks, long handle) {
+    public static SRBMessage  makeData(String svcname, byte[] data, long handle) {
     	if (svcname == null) throw new IllegalArgumentException("service name missing");
     	if (data == null) throw new IllegalArgumentException("no data with data message");
     	if (handle == 0) throw new IllegalArgumentException("no handle with datamessage");
@@ -255,9 +261,8 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	msg.command = SRB_SVCDATA;
     	msg.marker = SRB_NOTIFICATIONMARKER;
 		msg.put(SRB_PARAM_DATA, data);
-		msg.put(SRB_PARAM_HANDLE, String.format("%8.8x", handle));
-		msg.put(SRB_PARAM_DATATOTAL, chunks);
-
+		msg.put(SRB_PARAM_HANDLE, String.format("%08x", handle));
+ 
     	return msg;
     }
     
@@ -347,9 +352,9 @@ public class SRBMessage extends HashMap<String, byte[]> {
           // First check to see if we need ASCII or HEX
           if ((in[i] >= '0' && in[i] <= '9')
               || (in[i] >= 'a' && in[i] <= 'z')
-              || (in[i] >= 'A' && in[i] <= 'Z') || in[i] == '$'
-              || in[i] == '-' || in[i] == '_' || in[i] == '.'
-              || in[i] == '!') {
+              || (in[i] >= 'A' && in[i] <= 'Z')  
+              || in[i] == '_' || in[i] == '.'
+              ) {
             out.append((char) in[i]);
             i++;
           } else if ( in[i] == ' ') {

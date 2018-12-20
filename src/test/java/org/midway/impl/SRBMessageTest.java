@@ -62,15 +62,40 @@ public class SRBMessageTest {
 	public void testurlcode() {
 		System.out.println ("test with bye encoders code");
 		PrintStream out = System.out;
-		String s = "123\0\0x456 ";
-		byte[] b = s.getBytes();
+		String teststrings[] = {"123\0\0x456 ", "vbnvbcn" , 
+				"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghij" 
+						+ "klmnopqrstuvwxyz{|} \n", 
+						MidWayTest.bigdata
+		};
+		
+		for (String s : teststrings) {
+			byte[] b = s.getBytes();
+			out.println("raw len = " + b.length);
+			String enc = SRBMessage.byteArrayToURLString(b);
+			out.println(enc);
+			out.println("enc len = " + enc.length());
+			byte[] b2 = SRBMessage.byteArrayFromURLString(enc);
+			out.println("raw len = " + b2.length);
+			out.print(new String(b2));
+			assertEquals(new String(b2),  s);
+		}
+		
+	}
+	@Test
+	public void testurlcode2() {
+		PrintStream out = System.out;
+		String teststring;
+		teststring = "1!!2";
+		byte[] b = teststring.getBytes();
+		out.println("raw len = " + b.length);
 		String enc = SRBMessage.byteArrayToURLString(b);
 		out.println(enc);
 		byte[] b2 = SRBMessage.byteArrayFromURLString(enc);
+		out.println("raw len = " + b2.length);
 		out.print(new String(b2));
-		assertEquals(new String(b2),  s);
-		
+		assertEquals(new String(b2), teststring);
 	}
+	
 	@Test
 	public void test() throws UnsupportedEncodingException {
 		String s = "123\0\0x456";
