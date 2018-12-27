@@ -147,36 +147,40 @@ public class SRBMessage extends HashMap<String, byte[]> {
 			 
 		}
 
-    	ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    	
-        synchronized (bos) {
-			            byte[] barr;
-            barr = command.getBytes();
-            bos.write(barr, 0, barr.length);
-            bos.write(marker);
-            boolean first = true;
-            for (String k : keySet()) {
-                if (first) 
-                    first = false;
-                else
-                    bos.write('&');
-                
-                barr = k.getBytes();
-                bos.write(barr, 0, barr.length);
-                bos.write('=');
-                barr = get(k);
-                String s = byteArrayToURLString(barr);
-                barr = s.getBytes();
-                bos.write(barr, 0, barr.length);
-            }
-            bos.write('\r');
-            bos.write('\n');
-        	byte[] byteArray = bos.toByteArray();
-			Timber.d("sending message (%d) %s", byteArray.length, new String(byteArray));
-        	bbos.write(byteArray);
-            bbos.flush();
-        }
+    	byte[] byteArray = encode();
+    	Timber.d("sending message (%d) %s", byteArray.length, new String(byteArray));
+    	bbos.write(byteArray);
+    	bbos.flush();
+
     }
+
+	public byte[] encode() {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
+    	byte[] barr;
+    	barr = command.getBytes();
+    	bos.write(barr, 0, barr.length);
+    	bos.write(marker);
+    	boolean first = true;
+    	for (String k : keySet()) {
+    		if (first) 
+    			first = false;
+    		else
+    			bos.write('&');
+
+    		barr = k.getBytes();
+    		bos.write(barr, 0, barr.length);
+    		bos.write('=');
+    		barr = get(k);
+    		String s = byteArrayToURLString(barr);
+    		barr = s.getBytes();
+    		bos.write(barr, 0, barr.length);
+    	}
+    	bos.write('\r');
+    	bos.write('\n');
+    	byte[] byteArray = bos.toByteArray();
+		return byteArray;
+	}
 
     protected void setCommand(String command) {
         this.command = command;

@@ -11,8 +11,6 @@ import java.net.ProtocolException;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.channels.SocketChannel;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,7 +18,6 @@ import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
 
-import org.midway.IMIdWayServiceCallback;
 import org.midway.MidWay;
 import org.midway.MidWayEventListener;
 import org.midway.MidWayReply;
@@ -30,17 +27,11 @@ import org.midway.MidWayServiceReplyListener;
 public class MidWayImpl {
 	private static final int MAXDATAPERCHUNK = 1000;
 	private boolean useThreads = false;
-	private Socket connection;
-	private BufferedOutputStream connbufout;
-	private boolean shutdown = false;
-
-	private int queuesize = 10000;
+ 	private boolean shutdown = false;
 
 	private long lasthandle = 1000;
-
-	ArrayBlockingQueue<SRBMessage> sendqueue;
-	SendThread senderthread ;
 	RecvThread receiverThread;
+	private SRBConnectionEndPoint srbEndPoint;
 
 
 	public MidWayImpl() {
@@ -70,6 +61,7 @@ public class MidWayImpl {
 		InetAddress addrs[] = InetAddress.getAllByName(host);
 		
 		
+		Socket connection = null;
 		for (InetAddress addr : addrs) {
 			SocketAddress socketAddress = new InetSocketAddress(addr, port);
 			connection = new Socket();
@@ -88,26 +80,23 @@ public class MidWayImpl {
 		if (connection == null || !connection.isConnected()) 
 			throw new IOException("unable to connect to server");
 		
-		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
-		
+		srbEndPoint = new SRBConnectionEndPoint(connection, useThreads);		
 		// read SRB READY
-		SRBMessage msg = getNextSRBMessage();
+		SRBMessage msg = srbEndPoint.getNextSRBMessage();
 		
 		// send SRB INIT
  
 		msg = SRBMessage.makeInitReq("java pure client", domain, null);
- 		msg.send(connbufout);
+		srbEndPoint.send(msg);
+ 		
 		
 		// read SRC INIT OK
-		msg = getNextSRBMessage();
+		msg = srbEndPoint.getNextSRBMessage();
 
 		this.useThreads = useThreads;
 		if (useThreads) {
-			sendqueue =  new ArrayBlockingQueue<SRBMessage>(queuesize);
-			senderthread = new SendThread();
-			receiverThread = new RecvThread();
-			senderthread.start();
-			receiverThread.start();
+  			receiverThread = new RecvThread();
+ 			receiverThread.start();
 		} else {
 			
 		}
@@ -119,10 +108,8 @@ public class MidWayImpl {
 	public final void detach() throws Exception{
 
 		SRBMessage msg = SRBMessage.makeTerm(0);
-		msg.send(connbufout);
-		connection.close();
-		connection = null;
-		connbufout = null;
+		srbEndPoint.send(msg);
+		srbEndPoint.close();
 	}
 
 	public MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
@@ -171,43 +158,24 @@ public class MidWayImpl {
 		
 		SRBMessage msg = SRBMessage.makeCallReq(servicename, datachunks.remove(0), totallength, handle,multiple, 0);
 
-		if (useThreads) sendqueue.put(msg);
-		else msg.send(connbufout);
-
+		srbEndPoint.send(msg);
+		
 		int offset = MAXDATAPERCHUNK;
 		while (datachunks.size() > 0) {			
 			msg = SRBMessage.makeData(servicename, datachunks.remove(0), handle);
-			if (useThreads) sendqueue.put(msg);
-			else msg.send(connbufout);
+			srbEndPoint.send(msg);
 		}
 		return handle;
 	}
 
 
-	private class SendThread extends Thread {
-		public void run() {
-
-			try {
-				while (!shutdown) {                
-					SRBMessage msg = sendqueue.take();
-					msg.send(connbufout);                        
-				}
-			} catch (InterruptedException e) {
-				// TODO shutdown
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO reconnect
-				e.printStackTrace();
-			}
-		}
-
-	}
+	
 
 	private class RecvThread extends Thread {
 		public void run() {
 			try {
 				while(!shutdown)
-					getNextSRBMessage();
+					srbEndPoint.getNextSRBMessage();
 			} catch (IOException | ParseException e) {
 				// TODO reconnect??
 				e.printStackTrace();
@@ -217,55 +185,7 @@ public class MidWayImpl {
 
 	StringBuffer messagebuffer  = new StringBuffer();
 
-	private  SRBMessage xgetNextSRBMessage() throws IOException, ParseException {
-		InputStream is = connection.getInputStream();
-		
-        BufferedReader receiveRead = new BufferedReader(new InputStreamReader(is));
-        
-        Timber.d("starting read message with %d available ready = %b", is.available(), receiveRead.ready());
-        String line = receiveRead.readLine();
-        
-        if (line == null)  throw new IOException("server connection closed");
-       
-        Timber.d("got message %d %s", line.length(), line);
 
-        SRBMessage msg = new SRBMessage();
-		msg.parse(line);
-		Timber.d("got message %s", msg);
-		return msg;
-
-
-	} 
-	private  SRBMessage getNextSRBMessage() throws IOException, ParseException {
-		InputStream is = connection.getInputStream();
-		//SocketChannel schannel = connection.getChannel();
-          
-		int eomidx;
-		while ((eomidx = messagebuffer.indexOf(SRBMessage.SRB_MESSAGEBOUNDRY)) == -1) {
-			Timber.d("starting read message with %d available  ", messagebuffer.length());
-
-			// get more data			
-			byte[] buf = new byte[128*1024];
-			int read = is.read(buf);
-			Timber.d("read %d bytes from connection", read);
-			if (read == -1) throw new IOException("Connection broken");
-			String part = new String(buf, 0, read);
-			
-			messagebuffer.append(part);			
-		}
-		
-
-		SRBMessage msg = new SRBMessage();
-		char[] dst = new char[eomidx];
-		String s = messagebuffer.substring(0, eomidx);
-        Timber.d("got message %d %s", s.length(), s);
-
-		//messagebuffer.getChars(0, eomidx+2, dst, 0);
-		msg.parse(s); 
-		Timber.d("got message %s", msg);
-		messagebuffer.delete(0,  eomidx+2);
-		return msg;
-	} 
 	
 	void doSRBMessage(SRBMessage msg) {
 		
@@ -296,12 +216,11 @@ public class MidWayImpl {
 	private void doShutdown(SRBMessage msg) {
 		shutdown = true;
 		try {
-			connection.close();
+			srbEndPoint.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-		connection = null;
+		}		
 	}
 	private void doEvent(SRBMessage msg) {
 		//lookuplistener;
@@ -353,20 +272,20 @@ public class MidWayImpl {
 	}
 	
 
-	public int drain() {
-		try {
-			if ( connection.getInputStream().available() > 0)
-				getNextSRBMessage();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		return 0;
-	}
+//	public int drain() {
+//		try {
+//			if ( connection.getInputStream().available() > 0)
+//				getNextSRBMessage();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (ParseException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		
+//		return 0;
+//	}
 	public boolean fetch(long handle) throws Exception {
 
 		if (useThreads) throw  new Exception("Using threads, no need to call fetch");
@@ -376,7 +295,7 @@ public class MidWayImpl {
 		if (pendingsize == 0) throw new Exception("No pending replies");
 		SRBMessage msg;
 		
-		msg = getNextSRBMessage();
+		msg = srbEndPoint.getNextSRBMessage();
 		doSRBMessage(msg);
 		Timber.d("done one SRB message");
 		if (pendingsize >  pendingServiceCalls.size()) return true;
@@ -405,8 +324,7 @@ public class MidWayImpl {
 		MidWayPendingReply pending = pendingServiceCalls.get(handle);
 		MidWayReply rpl;
 
-		if (! useThreads  && connection.getInputStream().available() > 0)
-			getNextSRBMessage();
+		srbEndPoint.getNextSRBMessage();
 
 		synchronized(pending) {
 
@@ -414,7 +332,7 @@ public class MidWayImpl {
 				if (useThreads) {                
 					pending.wait();
 				} else {
-					getNextSRBMessage();
+					srbEndPoint.getNextSRBMessage();
 				}
 
 			}
