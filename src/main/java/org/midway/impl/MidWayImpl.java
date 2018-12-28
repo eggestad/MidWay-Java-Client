@@ -146,8 +146,10 @@ public class MidWayImpl {
 		boolean noreply = (flags & MidWay.NOREPLY) != 0;
 		if ( !noreply || datachunks.size() > 1) {
 			handle = lasthandle ++;
-			if (handle > 0xFFFFFF) handle = 1000;
-			lasthandle = handle;
+			if (handle > 0xFFFFFF) {
+				handle = 1000;			
+				lasthandle = handle;
+			}
 		}
 		if ( !noreply ) { 
 			MidWayPendingReply pending = new MidWayPendingReply();
