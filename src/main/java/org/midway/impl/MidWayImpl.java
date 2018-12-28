@@ -35,7 +35,6 @@ public class MidWayImpl {
 
 
 	public MidWayImpl() {
-		Timber.plant(new Timber.DebugTree());		
 		Timber.d("start");
 	}
 	public final void attach(URI uri, String name, boolean useThreads) throws Exception{
@@ -69,6 +68,8 @@ public class MidWayImpl {
 			
 			try {
 				connection.connect(socketAddress, 1000); 
+				Timber.d("connected");
+
 			} catch (Exception e) {
 				Timber.w("failed on connect");
 				continue;
@@ -79,12 +80,15 @@ public class MidWayImpl {
 		}
 		if (connection == null || !connection.isConnected()) 
 			throw new IOException("unable to connect to server");
-		
+		Timber.d("getting READY  msg");
+
 		srbEndPoint = new SRBConnectionEndPoint(connection, useThreads);		
 		Timber.d("getting READY  msg");
+
 		// read SRB READY
 		SRBMessage msg = srbEndPoint.getNextSRBMessage();
-		
+		Timber.d("got READY  msg");
+
 		// send SRB INIT
  
 		msg = SRBMessage.makeInitReq("java pure client", domain, null);
@@ -112,6 +116,7 @@ public class MidWayImpl {
 		SRBMessage msg = SRBMessage.makeTerm(0);
 		srbEndPoint.send(msg);
 		srbEndPoint.close();
+		if (useThreads) receiverThread.join();
 	}
 
 	public MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
@@ -175,13 +180,27 @@ public class MidWayImpl {
 
 	private class RecvThread extends Thread {
 		public void run() {
-			try {
-				while(!shutdown)
-					srbEndPoint.getNextSRBMessage();
-			} catch (IOException | ParseException e) {
-				// TODO reconnect??
-				e.printStackTrace();
-			}
+			SRBMessage msg;
+		
+			while(!shutdown) {
+				try {
+					msg = srbEndPoint.getNextSRBMessage();
+					Timber.d("done one SRB message");
+					doSRBMessage(msg);
+					
+				} catch (IOException e) {
+					try {
+						srbEndPoint.close();
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+					return;					
+				} catch ( ParseException e) {
+					// TODO reconnect??
+					e.printStackTrace();
+				}
+			}			
 		}
 	}
 

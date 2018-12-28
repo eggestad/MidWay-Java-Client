@@ -21,23 +21,31 @@ public class SRBConnectionEndPoint {
 	InputStream is;
 
 	private class SendThread extends Thread {
+		
+		public SendThread() {
+			setName("SRB Sender Thread");
+		}
+		
 		public void run() {
-
-			try {
-				while (!shutdown) {                
+			Timber.d("starting send thread");
+			while (!shutdown) {                
+				try {
+					Timber.d("dedueue a message, sending");
 					SRBMessage msg = sendqueue.take();
  					connbufout.write(msg.encode());
+					connbufout.flush();
+				} catch (InterruptedException e) {					
+					Timber.w("got and interrupt, ignoring");
+				} catch (IOException e) {
+					if (!shutdown) {
+						Timber.e("Got an IO exception in send thread");
+					}
 				}
-			} catch (InterruptedException e) {
-				// TODO shutdown
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO reconnect
-				e.printStackTrace();
 			}
-		}
-
+			Timber.d("exiting send thread");
+		}	
 	}
+	
 	public SRBConnectionEndPoint(Socket conn, boolean useSendThread) throws IOException {
 		this.connection = conn;
 		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
@@ -45,7 +53,7 @@ public class SRBConnectionEndPoint {
 		if (useSendThread) {
 			sendqueue = new ArrayBlockingQueue<SRBMessage>(queuesize);
 			senderthread = new SendThread();
-			senderthread.run();
+			senderthread.start();
 		}
 		
 	
@@ -62,34 +70,36 @@ public class SRBConnectionEndPoint {
 		}
 		return true;
 	}
-	private  SRBMessage xgetNextSRBMessage() throws IOException, ParseException {
-		InputStream is = connection.getInputStream();
-		
-        BufferedReader receiveRead = new BufferedReader(new InputStreamReader(is));
-        
-        Timber.d("starting read message with %d available ready = %b", is.available(), receiveRead.ready());
-        String line = receiveRead.readLine();
-        
-        if (line == null)  throw new IOException("server connection closed");
-       
-        Timber.d("got message %d %s", line.length(), line);
-
-        SRBMessage msg = new SRBMessage();
-		msg.parse(line);
-		Timber.d("got message %s", msg);
-		return msg;
-
-
-	} 
+//	private  SRBMessage xgetNextSRBMessage() throws IOException, ParseException {
+//		InputStream is = connection.getInputStream();
+//		
+//        BufferedReader receiveRead = new BufferedReader(new InputStreamReader(is));
+//        
+//        Timber.d("starting read message with %d available ready = %b", is.available(), receiveRead.ready());
+//        String line = receiveRead.readLine();
+//        
+//        if (line == null)  throw new IOException("server connection closed");
+//       
+//        Timber.d("got message %d %s", line.length(), line);
+//
+//        SRBMessage msg = new SRBMessage();
+//		msg.parse(line);
+//		Timber.d("got message %s", msg);
+//		return msg;
+//
+//
+//	} 
 	public  SRBMessage getNextSRBMessage() throws IOException, ParseException {
 		//SocketChannel schannel = connection.getChannel();
-          
+		Timber.d("getting next message ");
+
 		int eomidx;
 		while ((eomidx = messagebuffer.indexOf(SRBMessage.SRB_MESSAGEBOUNDRY)) == -1) {
 			Timber.d("starting read message with %d available  ", messagebuffer.length());
 
 			// get more data			
 			byte[] buf = new byte[128*1024];
+			
 			int read = is.read(buf);
 			Timber.d("read %d bytes from connection", read);
 			if (read == -1) throw new IOException("Connection broken");
@@ -112,10 +122,10 @@ public class SRBConnectionEndPoint {
 	}
 
 	public void close() throws IOException {
+		shutdown = true;
 		Timber.d("closing endpoint");
 		connection.close();
-		connection = null;
-		connbufout = null;
+		 
 	} 
 	
 }
