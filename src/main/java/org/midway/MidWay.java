@@ -3,6 +3,7 @@ package org.midway;
 import java.net.URI;
 
 import org.midway.impl.MidWayImpl;
+import org.midway.impl.Timber;
 
 
 
@@ -37,8 +38,19 @@ public class MidWay{
 
     private  MidWayImpl driver;
     
+    public static boolean useThreads = true;
+    
+    public static void enableDebugging() {
+    	Timber.uprootAll();
+		Timber.plant(new Timber.DebugTree());		
+    };
+    
+    static  {
+		Timber.plant(new Timber.DebugTree());		
+
+    }
+    
     public MidWay() {
-    	System.out.println("test");
     	driver = new MidWayImpl(); 
     }
 
@@ -57,15 +69,15 @@ public class MidWay{
         attach(uri, name, useThreads);
     }
 
-    private void attach(URI uri) throws Exception {
+    public void attach(URI uri) throws Exception {
         attach(uri, "", false);
     }
     
-    private void attach(URI uri, String name) throws Exception {
+    public void attach(URI uri, String name) throws Exception {
     	attach(uri, name, false);
     }
     
-	private void attach(URI uri, String name, boolean useThreads) throws Exception {
+    public void attach(URI uri, String name, boolean useThreads) throws Exception {
 		driver.attach( uri,  name,  useThreads);		
 	}
 
