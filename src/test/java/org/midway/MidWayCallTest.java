@@ -9,6 +9,7 @@ import javax.sql.rowset.spi.SyncResolver;
 
 import org.junit.Test;
 import org.midway.MidWay;
+import org.midway.impl.Timber;
 
 /* Copyright (C) Adadz AS - All Rights Reserved
  * Unauthorized copying of this file, via any medium is strictly prohibited
@@ -28,38 +29,116 @@ public class MidWayCallTest {
 	
 	private void wake(Object complete) {
 		synchronized (complete) {
- 			complete.notify();
+ 			complete.notify(); 			
 		}
 	}
+	
+	
 	@Test
-	public void testMidWayCallsThread() throws Exception {
+	public void testCallsBigData() throws Exception {
 		URI uri = getTestURI();
 		MidWay.useThreads = true;
 		MidWay mw = new MidWay(uri);
-		Object complete = new Object();
+		Boolean complete = false;
+		MidWayServiceReplyListener listener =  (reply)-> System.out.println("reply " + reply);
 
 		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
-		mw.call("testchargen", "100", (reply)->  { 
-			System.out.println("reply " + reply); 
-			wake(complete);
-		} );
+		mw.call("testchargen", "100", listener);
 		
-		synchronized (complete) {
-			complete.wait(3000);
+		synchronized (listener) {
+			listener.wait(3000);
 		}
 		System.out.println("complete");
 		
-		mw.call("testtime", bigdata, 
-				(reply)-> { System.out.println("reply " + reply) ; wake(complete);} );
-		synchronized (complete) {
-			complete.wait(3000);
+		mw.call("testtime", bigdata, listener);
+				
+		synchronized (listener) {
+			listener.wait(3000);
+		}
+		System.out.println("complete");
+		
+		mw.detach();
+	}
+	
+	@Test
+	public void testCallsInOrder() throws Exception {
+		URI uri = getTestURI();
+		MidWay.useThreads = true;
+		MidWay mw = new MidWay(uri);
+		Boolean complete = false;
+		Object waitobj = new Object();
+
+		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+		mw.call("testchargen", "10", (reply)->  { 
+			System.out.println("reply " + reply);
+			wake(waitobj);
+		} );
+		
+		synchronized (waitobj) {
+			if (!complete)
+				waitobj.wait(3000);
+		}
+		System.out.println("complete");
+		MidWayServiceReplyListener listener =  (reply)-> System.out.println("reply " + reply);
+		
+		mw.call("testtime", "", listener);
+				
+		synchronized (listener) {
+			listener.wait(3000);
 		}
 		System.out.println("complete");
 		
 		mw.detach();
 	}
 
+	Boolean complete = false;
+	@Test
+	public void testCallOutOfOrder() throws Exception {
 	
+		URI uri = getTestURI();
+		MidWay.useThreads = true;
+		MidWay mw = new MidWay(uri);
+		
+		Object waitobj = new Object();
+
+		MidWayServiceReplyListener listener0 =  new MidWayServiceReplyListener() {			
+			@Override
+			public void receive(MidWayReply reply) {
+				System.out.println("listener0 reply " + reply);			
+				complete = true;	
+			}
+		};
+
+		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+		mw.call("testtime", "10",  listener0);
+		
+		Thread.sleep(2000);
+		
+		MidWayServiceReplyListener listener =  (reply)-> System.out.println("listener reply " + reply);
+		
+		mw.call("testtime", "", listener);
+				
+		synchronized (listener) {
+			Timber.i("Waiting on listener");
+			listener.wait(3000);
+			Timber.i("Woke on listener");			
+		}
+		
+		synchronized (listener0) {
+			if (!complete) {
+				Timber.i("Waiting on complete %b", listener0);
+				
+				complete.wait(3000);
+				Timber.i("Woke on complete");			
+			}  else  {
+				Timber.i("already complete");
+			}
+
+		}
+		
+		mw.detach();
+	}
+
  
 
 	public static String bigdata = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghij" + 
