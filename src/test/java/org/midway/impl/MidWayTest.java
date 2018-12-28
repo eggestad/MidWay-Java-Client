@@ -3,6 +3,7 @@ package org.midway.impl;
 import static org.junit.Assert.*;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.junit.Test;
 import org.midway.MidWay;
@@ -161,32 +162,34 @@ public class MidWayTest {
 			 "0123456789------------------!!!------ !\"#$%&'()*+----------------0123456789\n" + 
 			 "0123456789--- --- ---- ---- ----!!!------- !\"#$%&'()*+---------------0123456789\n" + 
 			 "0123456789------------------!!!----------------------0123456789\n" ; 
-	
-	
-	@Test
-	public void testMidWay() {
-		try {
-			URI uri = new URI("srbp:/test");
-			MidWay mw = new MidWay(uri);
-			
-			//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
-			mw.acall("testchargen", "100", (reply)->  System.out.println("reply " + reply) );
-			while(!mw.fetch());
 
-			mw.acall("testtime", bigdata, (reply)->  System.out.println("reply " + reply) );
-			while(!mw.fetch());
-
-			mw.detach();
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	public URI getTestURI() throws URISyntaxException {
+		URI uri = new URI("srbp:/test");
+		return uri;
 	}
 
 	@Test
-	public void testMidWayURI() {
-		fail("Not yet implemented");
+	public void testMidWayURI() throws Exception {
+		URI uri = getTestURI();
+		MidWay mw = new MidWay(uri);
+
+		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
+		mw.acall("testchargen", "100", (reply)->  System.out.println("reply " + reply) );
+		while(!mw.fetch());
+
+		mw.acall("testtime", bigdata, (reply)->  System.out.println("reply " + reply) );
+		while(!mw.fetch());
+
+		mw.detach();
+	}
+
+	
+	@Test
+	public void testMidWay() throws Exception {
+		URI uri = getTestURI();
+		MidWay mw = new MidWay();
+		mw.attach(uri, "testclient", true);
+		mw.detach();
 	}
 
 	@Test
