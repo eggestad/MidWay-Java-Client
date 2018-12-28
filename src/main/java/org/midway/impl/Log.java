@@ -21,9 +21,14 @@ public class Log {
 	}
 
 	public static void println(int priority, String tag, String message) {
-		DateFormat inst = SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.SHORT, SimpleDateFormat.SHORT);
-		
-		Object msg = String.format("%s %4s %16s %s", inst.format(new Date()), plbl[priority], 
+		DateFormat inst;
+		//inst = SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.SHORT, 
+		//		SimpleDateFormat.FULL);
+		inst = new SimpleDateFormat("yyyyMMdd HH:mm:ss.SSS");
+		Date date = new Date();
+		Object msg = String.format("%s %4s %-20s %s", 
+				inst.format(date),
+				plbl[priority], 
 				tag, message); 
 		if (priority < INFO)
 			System.err.println(msg);
