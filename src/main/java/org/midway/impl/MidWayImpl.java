@@ -119,12 +119,6 @@ public class MidWayImpl {
 		if (useThreads) receiverThread.join();
 	}
 
-	public MidWayReply call(String servicename, byte[] data, int flags) throws Exception {
-		// clear MORE flag is set
-		long hdl = acall( servicename, data, null,  flags);
-		return fetchx(hdl);
-	}
-
 
 	HashMap<Long, MidWayPendingReply> pendingServiceCalls = new HashMap<Long, MidWayPendingReply>();
 
