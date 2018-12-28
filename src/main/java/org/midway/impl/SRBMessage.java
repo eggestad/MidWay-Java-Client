@@ -9,21 +9,31 @@ import java.text.ParseException;
 import java.util.Arrays;
 import java.util.HashMap;
 
-/* Copyright (C) Adadz AS - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
+
+/**
  * 
- * This file is subject to the terms and conditions defined in
- * file 'LICENSE.txt', which is part of this source code package.
+ * This class hold a SRB Protocol message in a form that allow us easily to 
+ * inspect and create messages.
+ *  
+ *  ** Please see the Service Request Broker (SRC) Protocol specification. 
+ *  
+ * This class also parse and encode the SRB messages received of the transport layer.
+ * 
+ * This is a subclass of HashMap which hold the key value pairs in a SRB message, 
+ * as well and fields for holding the SRB command word and marker
+ * 
+ * @author terje
+ *
  */
 
 public class SRBMessage extends HashMap<String, byte[]> {
-	  /// The SRB version number, required in SRB INIT. 
+	// The SRB version number, required in SRB INIT. 
     public static final String SRBPROTOCOLVERSION =    "0.9";
 
-/// The maximum total length of an SRB message, liable to increase. 
+    // The maximum total length of an SRB message, liable to increase. 
     public static final int  SRBMESSAGEMAXLEN  =        3500;
 
+    // all the legal SRB commands
     public static final String SRB_INIT       = "SRB INIT";
     public static final String SRB_READY      = "SRB READY";
     public static final String SRB_SVCCALL  =   "SVCCALL"  ;
@@ -37,11 +47,13 @@ public class SRBMessage extends HashMap<String, byte[]> {
     public static final String SRB_UNSUBSCRIBE ="UNSUBSCRIBE";
     public static final String SRB_REJECT  =    "REJECT";
 
+    // all the legal SRB markers
     public static final char SRB_REQUESTMARKER  =       '?';
     public static final char SRB_RESPONSEMARKER  =      '.';
     public static final char SRB_NOTIFICATIONMARKER  =  '!';
     public static final char SRB_REJECTMARKER  =        '~';
 
+    // all the parameters that may possible occur in all the possible SRB commands. 
     public static final String SRB_PARAM_AGENT =  "AGENT";
     public static final String SRB_PARAM_AGENTVERSION =  "AGENTVERSION";
     public static final String SRB_PARAM_APPLICATIONRC =  "APPLICATIONRC";
@@ -87,12 +99,21 @@ public class SRBMessage extends HashMap<String, byte[]> {
     protected String command ;
     protected char marker;
     
+    /**
+     * clear this instance as if it was just created with new SRBMessage()
+     */
     public void clear() {
         super.clear();
         this.command = null;
         this.marker = ' ';
     }
     
+    /** 
+     * A simple check if the instance contains the bare minimum of what it takes to make a 
+     * properly formated SRB message.  
+     * @return
+     * @throws IllegalStateException
+     */
     protected boolean isValid()  throws IllegalStateException {
         if (command == null)
             throw new IllegalStateException("missing command");
@@ -111,6 +132,13 @@ public class SRBMessage extends HashMap<String, byte[]> {
     			"\\"  + SRB_REJECTMARKER + 
     			"]";
     
+    /** 
+     * Take an SRB message from the transport layer, parse it and return an instance with the 
+     * message
+     * @param messagestream the SRB message without the trailing \r\n
+     * @return 
+     * @throws ParseException
+     */
     public int parse(String messagestream) throws ParseException {
     	clear();
     	//regexMarker = "[^\\s]";
@@ -139,21 +167,25 @@ public class SRBMessage extends HashMap<String, byte[]> {
     }
    
     
-    public void send(BufferedOutputStream bbos) throws IOException {
-    	Timber.d("sending message %s", this);
-    	try {
-			Timber.d("datalen %d", this.getData().length);
-		} catch (Exception e) {
-			 
-		}
+//    public void send(BufferedOutputStream bbos) throws IOException {
+//    	Timber.d("sending message %s", this);
+//    	try {
+//			Timber.d("datalen %d", this.getData().length);
+//		} catch (Exception e) {
+//			 
+//		}
+//
+//    	byte[] byteArray = encode();
+//    	Timber.d("sending message (%d) %s", byteArray.length, new String(byteArray));
+//    	bbos.write(byteArray);
+//    	bbos.flush();
+//
+//    }
 
-    	byte[] byteArray = encode();
-    	Timber.d("sending message (%d) %s", byteArray.length, new String(byteArray));
-    	bbos.write(byteArray);
-    	bbos.flush();
-
-    }
-
+    /**
+     * Take the instance and format it to a byte[] to be sent on transport layer
+     * @return
+     */
 	public byte[] encode() {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
@@ -198,8 +230,14 @@ public class SRBMessage extends HashMap<String, byte[]> {
 	}
    
 	
-	// methods to make legal messages
+	// methods to make legal SRB messages 
+	// see SRB protocol spec.   
 	
+	/**
+	 * make a SRB TERM message.
+	 * @param grace
+	 * @return an instance of SRBMessage with the given parameters
+	 */
     public static SRBMessage  makeTerm(int grace) {
     	SRBMessage msg = new SRBMessage();
     	msg.command = SRB_TERM;
@@ -208,6 +246,13 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
+    /**
+     * make a SRB INIT request
+     * @param name
+     * @param domain
+     * @param instance
+     * @return an instance of SRBMessage with the given parameters
+     */
     public static SRBMessage  makeInitReq(String name, String domain, String instance) {
     	if (name == null) name = "";
     	SRBMessage msg = new SRBMessage();
@@ -226,7 +271,18 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
-   
+    /**
+    * Make a SRB SVCCALL message, 
+    * @param svcname the service name, may not be null
+    * @param data data passed to the service, may be null
+    * @param datatotal the total length of data for the call. Shall be 0 if data contain the 
+    * full data, or null
+    * @param handle a unique (at least there can not be any other calls in progress with the 
+    * same handle) handle. may be zero if this is a call that shall not get a reply.
+    * @param multiple flag to indicate that the server responding may send multiple replies.
+    * @param secstolive 
+    * @return an instance of SRBMessage with the given parameters
+    */
     public static SRBMessage  makeCallReq(String svcname, byte[] data, int datatotal, 
     		long handle, boolean multiple, int secstolive) {
     	
@@ -257,6 +313,13 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
 
+    /**
+     * make a SRB SVCDATA message
+     * @param svcname MidWay service name
+     * @param data application data, may be binary
+     * @param handle the handle used in the SVCCALL message 
+     * @return an instance of SRBMessage with the given parameters
+     */
     public static SRBMessage  makeData(String svcname, byte[] data, long handle) {
     	if (svcname == null) throw new IllegalArgumentException("service name missing");
     	if (data == null) throw new IllegalArgumentException("no data with data message");
@@ -270,6 +333,12 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return msg;
     }
     
+    /**
+     * Make a SRB SUBSCRIBE message
+     * @param regexp the regexp that 
+     * @param unsubscribe if true cancel a previous subscribe
+     * @return
+     */
     public static SRBMessage  makeSubscribeReq(String regexp, boolean unsubscribe) {
     	if (regexp == null) throw new IllegalArgumentException("missing regexp");
     	SRBMessage msg = new SRBMessage();
@@ -301,6 +370,11 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	return Arrays.copyOf(res, reslen);
     }
 
+	/**
+	 * Helper function that give us the binary value of a HEX character   
+	 * @param b a byte in the range of 0-9 or A-F
+	 * @return a value between 0 and 0xf
+	 */
     protected static byte nibble(byte b) {
     	switch (b) {
 
@@ -342,6 +416,12 @@ public class SRBMessage extends HashMap<String, byte[]> {
     	}
     	throw new NumberFormatException("Not a hex char: " + b ); 
     }
+    
+    /**
+     * escape data according to SRB protpcol spec using URL encoding. 
+     * @param in byte array that can contain binary data
+     * @return url encoded string
+     */
     protected static String byteArrayToURLString(byte in[]) {
         byte ch = 0x00;
         int i = 0;
@@ -385,6 +465,8 @@ public class SRBMessage extends HashMap<String, byte[]> {
 
       }
 
+    // getters
+    
 	public long getHandle() {
 		byte[] sHdl = get(SRB_PARAM_HANDLE);
 		if (sHdl == null) return 0;
