@@ -19,7 +19,11 @@ import org.midway.impl.Timber;
  * file 'LICENSE.txt', which is part of this source code package.
  */
 
+/*
+ * require that the standard test suite is running
+ */
 public class MidWayCallTest {
+	
 	
 	
 	public URI getTestURI() throws URISyntaxException {
