@@ -23,7 +23,7 @@ public class SRBConnectionEndPoint {
 	private class SendThread extends Thread {
 		
 		public SendThread() {
-			setName("SRB Sender Thread");
+			setName("SRB Sender");
 		}
 		
 		public void run() {

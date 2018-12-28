@@ -37,7 +37,7 @@ public class MidWayImpl {
 	public MidWayImpl() {
 		Timber.d("start");
 	}
-	public final void attach(URI uri, String name, boolean useThreads) throws Exception{
+	public final synchronized void attach(URI uri, String name, boolean useThreads) throws Exception{
 
 		Timber.d("start attach uri %s %s %s %s", 
 				uri.getScheme(), uri.getHost(), uri.getPort(), uri.getPath());
@@ -102,6 +102,7 @@ public class MidWayImpl {
 		this.useThreads = useThreads;
 		if (useThreads) {
   			receiverThread = new RecvThread();
+  			receiverThread.setName("SRB Receiver");
  			receiverThread.start();
 		} else {
 			
@@ -111,7 +112,7 @@ public class MidWayImpl {
 	}
 
 
-	public final void detach() throws Exception{
+	public final synchronized void detach() throws Exception{
 
 		SRBMessage msg = SRBMessage.makeTerm(0);
 		srbEndPoint.send(msg);
@@ -256,8 +257,10 @@ public class MidWayImpl {
 			pending.data.add(data);
 			if (pending.isComplete() ) {
 				Timber.d("is ready");
-				if (!pending.more)
+				if (!pending.more) {
 					pendingServiceCalls.remove(hdl);
+					pending.notifyAll();
+				}
 				pending.deliver(); 
 
 			} 
@@ -362,7 +365,7 @@ public class MidWayImpl {
 
 	HashMap<MidWayEventListener,Pattern> eventlisteners = new HashMap<MidWayEventListener, Pattern >();
 
-	public final void subscribe(Pattern regex, MidWayEventListener listener) {
+	public final synchronized void subscribe(Pattern regex, MidWayEventListener listener) {
 
 		eventlisteners.put(listener, regex);
 		// write SUBSCRIBE message
@@ -370,7 +373,7 @@ public class MidWayImpl {
 	}
 
 
-	public final void unsubscribe(MidWayEventListener listener) {
+	public final synchronized void unsubscribe(MidWayEventListener listener) {
 		// find listener
 		Pattern regex = eventlisteners.remove(listener);
 		// write UNSUBSCRIBE message

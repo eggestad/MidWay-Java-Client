@@ -78,7 +78,7 @@ public class MidWay{
      */
     public MidWay(URI uri) throws Exception {
     	this();
-    	attach(uri, "", false);
+    	attach(uri, "", useThreads);
     }
     
     /**
@@ -92,7 +92,7 @@ public class MidWay{
      */
     public MidWay(URI uri, String name) throws Exception {
     	this();
-        attach(uri, name, false);
+        attach(uri, name, useThreads);
     }
 
     /**
@@ -111,18 +111,18 @@ public class MidWay{
     }
 
     /**
-     * Connects this uncoonnected MidWay instance to a server 
+     * Connects this unconnected MidWay instance to a server 
      * using the given URI
      * 
      * @param uri an URI on the form srbp:[//host[:port]]/domain
      * @throws Exception
      */
     public void attach(URI uri) throws Exception {
-        attach(uri, "", false);
+        attach(uri, "", useThreads);
     }
     
     /**
-     * Connects this uncoonnected MidWay instance to a server 
+     * Connects this unconnected MidWay instance to a server 
      * using the given URI
      * 
      * @param uri an URI on the form srbp:[//host[:port]]/domain
@@ -130,11 +130,11 @@ public class MidWay{
      * @throws Exception
      */
     public void attach(URI uri, String name) throws Exception {
-    	attach(uri, name, false);
+    	attach(uri, name, useThreads);
     }
     
     /**
-     * Connects this uncoonnected MidWay instance to a server 
+     * Connects this unconnected MidWay instance to a server 
      * using the given URI
      * 
      * @param uri an URI on the form srbp:[//host[:port]]/domain
@@ -167,7 +167,7 @@ public class MidWay{
 	 * @param flags TBD
 	 * @throws Exception
 	 */
-	public void acall(String service, byte[] data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+	public void call(String service, byte[] data, MidWayServiceReplyListener listener, int flags) throws Exception {		
 		driver.acall(service, data, listener, flags);
 		return ;
 	}
@@ -184,8 +184,8 @@ public class MidWay{
 	 * @param listener the call back for the reply. If null, the request is in the blind, not even failure will be reported
 	 * @throws Exception
 	 */
-	public void acall(String service, byte[] data, MidWayServiceReplyListener listener) throws Exception {
-		acall(service, data, listener, 0);
+	public void call(String service, byte[] data, MidWayServiceReplyListener listener) throws Exception {
+		call(service, data, listener, 0);
 		return; 
 	}
 	
@@ -202,8 +202,8 @@ public class MidWay{
 	 * @param flags TBD
 	 * @throws Exception
 	 */
-	public void acall(String service, String data, MidWayServiceReplyListener listener, int flags) throws Exception {		
-		acall(service, data.getBytes(), listener, flags);
+	public void call(String service, String data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+		call(service, data.getBytes(), listener, flags);
 		return ;
 	}
 	
@@ -219,8 +219,8 @@ public class MidWay{
 	 * @param listener the call back for the reply. If null, the request is in the blind, not even failure will be reported
 	 * @throws Exception
 	 */
-	public void acall(String service, String data, MidWayServiceReplyListener listener) throws Exception {
-		acall(service, data.getBytes(), listener, 0);
+	public void call(String service, String data, MidWayServiceReplyListener listener) throws Exception {
+		call(service, data.getBytes(), listener, 0);
 		return; 
 	}
 	

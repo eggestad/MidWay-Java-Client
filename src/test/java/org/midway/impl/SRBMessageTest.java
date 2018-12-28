@@ -12,6 +12,8 @@ import java.net.URLEncoder;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.midway.MidWayCallTest;
+import org.midway.MidWayTest;
 
 
 public class SRBMessageTest {
@@ -61,7 +63,7 @@ public class SRBMessageTest {
 		String teststrings[] = {"123\0\0x456 ", "vbnvbcn" , 
 				"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghij" 
 						+ "klmnopqrstuvwxyz{|} \n", 
-						MidWayTest.bigdata
+						MidWayCallTest.bigdata
 		};
 		
 		for (String s : teststrings) {
