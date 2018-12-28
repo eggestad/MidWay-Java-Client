@@ -9,22 +9,16 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/* Copyright (C) Adadz AS - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * 
- * This file is subject to the terms and conditions defined in
- * file 'LICENSE.txt', which is part of this source code package.
- */
 
 public class SRBMessageTest {
 
 	@Before 
 	public void init() {
-		Timber.plant(new Timber.DebugTree());
+		//Timber.plant(new Timber.DebugTree());
 	}
 	@Test
 	public void testnibbler() {
@@ -51,11 +45,13 @@ public class SRBMessageTest {
 		
 		msg.put("KEY1", "VAL1".getBytes());
 		msg.put("KEY2", "VAL1???+\\+3242 æø æø END".getBytes());
-		ByteArrayOutputStream bas = new ByteArrayOutputStream(1000);
-		BufferedOutputStream bos = new BufferedOutputStream(bas);
-		msg.send(bos);
+	
+		byte encmsg[] = msg.encode();		
+		String encstr = new String(encmsg);
 		
-		System.out.println("encoded message: " + bas.toString());
+		System.out.println("encoded message: " + new String(encmsg));
+		String expected = "TEST!KEY2=VAL1%3F%3F%3F%2B%5C%2B3242+%C3%A6%C3%B8+%C3%A6%C3%B8+END&KEY1=VAL1\r\n";
+		assertEquals(expected, encstr);
 	}
 	
 	@Test
