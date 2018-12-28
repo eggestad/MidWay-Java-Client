@@ -81,6 +81,7 @@ public class MidWayImpl {
 			throw new IOException("unable to connect to server");
 		
 		srbEndPoint = new SRBConnectionEndPoint(connection, useThreads);		
+		Timber.d("getting READY  msg");
 		// read SRB READY
 		SRBMessage msg = srbEndPoint.getNextSRBMessage();
 		
@@ -89,7 +90,8 @@ public class MidWayImpl {
 		msg = SRBMessage.makeInitReq("java pure client", domain, null);
 		srbEndPoint.send(msg);
  		
-		
+		Timber.d("getting INIT reaply  msg");
+
 		// read SRC INIT OK
 		msg = srbEndPoint.getNextSRBMessage();
 

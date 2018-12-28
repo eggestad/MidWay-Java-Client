@@ -18,7 +18,7 @@ public class SRBConnectionEndPoint {
  	SendThread senderthread ;
  	private boolean shutdown = false;
 	StringBuffer messagebuffer  = new StringBuffer();
-	InputStream is = connection.getInputStream();
+	InputStream is;
 
 	private class SendThread extends Thread {
 		public void run() {
@@ -41,7 +41,7 @@ public class SRBConnectionEndPoint {
 	public SRBConnectionEndPoint(Socket conn, boolean useSendThread) throws IOException {
 		this.connection = conn;
 		connbufout = new BufferedOutputStream(connection.getOutputStream(), 10000);
-		
+		is = connection.getInputStream();
 		if (useSendThread) {
 			sendqueue = new ArrayBlockingQueue<SRBMessage>(queuesize);
 			senderthread = new SendThread();
@@ -53,9 +53,12 @@ public class SRBConnectionEndPoint {
 	
 	public boolean send(SRBMessage msg) throws IOException {
 		if (senderthread != null) {
+			Timber.d("queueing msg");
 			sendqueue.add(msg);
 		} else {
+			Timber.d("sending msg");
 			connbufout.write(msg.encode());
+			connbufout.flush();
 		}
 		return true;
 	}
@@ -109,6 +112,7 @@ public class SRBConnectionEndPoint {
 	}
 
 	public void close() throws IOException {
+		Timber.d("closing endpoint");
 		connection.close();
 		connection = null;
 		connbufout = null;
