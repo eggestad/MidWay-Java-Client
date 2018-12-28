@@ -158,8 +158,11 @@ public class MidWay{
 	 * Submitting a service request call  to the given service. The given listener 
 	 * will be called with the result.
 	 * 
+	 * Receiver thread will call notifyAll() on listener 
+	 * 
 	 * NB: If you have set the MidWay.useThreads to false or attached with useFlags = false
 	 * you must call fetch() to receive replies as well as events
+	 * 
 	 *   
 	 * @param service name, may not be null
 	 * @param data to be passed on to in the service, may be null
@@ -175,6 +178,8 @@ public class MidWay{
 	/**
 	 * Submitting a service request call  to the given service. The given listener 
 	 * will be called with the result.
+	 * 
+	 * Receiver thread will call notifyAll() on listener 
 	 * 
 	 * NB: If you have set the MidWay.useThreads to false or attached with useFlags = false
 	 * you must call fetch() to receive replies as well as events
@@ -193,6 +198,8 @@ public class MidWay{
 	 * Submitting a service request call  to the given service. The given listener 
 	 * will be called with the result.
 	 * 
+	 * Receiver thread will call notifyAll() on listener 
+	 * 
 	 * NB: If you have set the MidWay.useThreads to false or attached with useFlags = false
 	 * you must call fetch() to receive replies as well as events
 	 *   
@@ -210,6 +217,8 @@ public class MidWay{
 	/**
 	 * Submitting a service request call  to the given service. The given listener 
 	 * will be called with the result.
+	 * 
+	 * Receiver thread will call notifyAll() on listener 
 	 * 
 	 * NB: If you have set the MidWay.useThreads to false or attached with useFlags = false
 	 * you must call fetch() to receive replies as well as events

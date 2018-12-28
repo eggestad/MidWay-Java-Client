@@ -79,7 +79,12 @@ public class MidWayPendingReply {
 		if ( this.listener != null) {
 			MidWayReply rpl = this.getReply();
 			Timber.d("reply %s", rpl);
-			this.listener.receive(rpl);
+			
+			synchronized (this.listener) {
+				this.listener.receive(rpl);
+				this.listener.notifyAll();
+			}
+			
 		}
 	}
 
