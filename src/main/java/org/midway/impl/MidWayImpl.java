@@ -37,6 +37,14 @@ public class MidWayImpl {
 	public MidWayImpl() {
 		Timber.d("start");
 	}
+	
+	/**
+	 * Implementation of MidWay.attach
+	 * @param uri
+	 * @param name
+	 * @param useThreads
+	 * @throws Exception
+	 */
 	public final synchronized void attach(URI uri, String name, boolean useThreads) throws Exception{
 
 		Timber.d("start attach uri %s %s %s %s", 
@@ -111,7 +119,10 @@ public class MidWayImpl {
 
 	}
 
-
+	/**
+	 * Implements MaidWay.detach
+	 * @throws Exception
+	 */
 	public final synchronized void detach() throws Exception{
 
 		SRBMessage msg = SRBMessage.makeTerm(0);
@@ -123,6 +134,16 @@ public class MidWayImpl {
 
 	HashMap<Long, MidWayPendingReply> pendingServiceCalls = new HashMap<Long, MidWayPendingReply>();
 
+	/**
+	 * Implements MidWay.call
+	 * 
+	 * @param servicename
+	 * @param data
+	 * @param listener
+	 * @param flags
+	 * @return
+	 * @throws Exception
+	 */
 	public synchronized long acall(String servicename, byte[] data,
 			MidWayServiceReplyListener listener, int flags) throws Exception {
 		
@@ -171,9 +192,6 @@ public class MidWayImpl {
 		}
 		return handle;
 	}
-
-
-	
 
 	private class RecvThread extends Thread {
 		public void run() {
@@ -306,6 +324,13 @@ public class MidWayImpl {
 //		
 //		return 0;
 //	}
+	
+	/**
+	 * Implementation of MidWay.fetch
+	 * @param handle
+	 * @return
+	 * @throws Exception
+	 */
 	public boolean fetch(long handle) throws Exception {
 
 		if (useThreads) throw  new Exception("Using threads, no need to call fetch");
@@ -339,31 +364,31 @@ public class MidWayImpl {
 //		return rpl;
 		return false;
 	}
-	public MidWayReply fetchx(long handle) throws Exception {
-
-		MidWayPendingReply pending = pendingServiceCalls.get(handle);
-		MidWayReply rpl;
-
-		srbEndPoint.getNextSRBMessage();
-
-		synchronized(pending) {
-
-			while (!(pending.isReady())) {
-				if (useThreads) {                
-					pending.wait();
-				} else {
-					srbEndPoint.getNextSRBMessage();
-				}
-
-			}
-
-			if (!pending.more)
-				pendingServiceCalls.remove(handle);
-			rpl = pending.getReply();
-
-		}
-		return rpl;
-	}
+//	public MidWayReply fetchx(long handle) throws Exception {
+//
+//		MidWayPendingReply pending = pendingServiceCalls.get(handle);
+//		MidWayReply rpl;
+//
+//		srbEndPoint.getNextSRBMessage();
+//
+//		synchronized(pending) {
+//
+//			while (!(pending.isReady())) {
+//				if (useThreads) {                
+//					pending.wait();
+//				} else {
+//					srbEndPoint.getNextSRBMessage();
+//				}
+//
+//			}
+//
+//			if (!pending.more)
+//				pendingServiceCalls.remove(handle);
+//			rpl = pending.getReply();
+//
+//		}
+//		return rpl;
+//	}
 
 	HashMap<MidWayEventListener,Pattern> eventlisteners = new HashMap<MidWayEventListener, Pattern >();
 
