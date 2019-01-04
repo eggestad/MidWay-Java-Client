@@ -37,14 +37,24 @@ public class MidWayCallTest {
 		}
 	}
 	
-	
+	private class completeFlag {
+		Boolean complete = false;
+	}
+
 	@Test
 	public void testCallsBigData() throws Exception {
+		
+		Timber.i("\n\nSTARTING TEST\\n\n");
+		
 		URI uri = getTestURI();
 		MidWay.useThreads = true;
 		MidWay mw = new MidWay(uri);
-		Boolean complete = false;
-		MidWayServiceReplyListener listener =  (reply)-> System.out.println("reply " + reply);
+		completeFlag cf1 = new completeFlag();
+		completeFlag cf2 = new completeFlag();
+		MidWayServiceReplyListener listener =  (reply)-> {
+			System.out.println("reply " + reply);
+			cf1.complete = true;
+		};
 
 		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
 		mw.call("testchargen", "100", listener);
@@ -52,75 +62,123 @@ public class MidWayCallTest {
 		synchronized (listener) {
 			listener.wait(3000);
 		}
+		assertTrue(cf1.complete);
 		System.out.println("complete");
-		
+		cf1.complete = false;
 		mw.call("testtime", bigdata, listener);
 				
 		synchronized (listener) {
 			listener.wait(3000);
 		}
+		assertTrue(cf1.complete);
 		System.out.println("complete");
 		
+		mw.detach();
+	}
+	@Test
+	public void testReattach() throws Exception {
+		
+		Timber.i("\n\nSTARTING TEST\\n\n");
+		
+		URI uri = getTestURI();
+		MidWay.useThreads = true;
+		MidWay mw = new MidWay(uri);
+		completeFlag cf1 = new completeFlag();
+
+		mw.call("testsleep", "3", (reply)->  { 
+			System.out.println("reply sleep " + reply);			
+			synchronized (cf1) {
+				cf1.complete = true;
+				cf1.notify();
+			}
+		} );
+		
+		assertFalse(cf1.complete);
+		mw.detach();
+		
+		mw.attach(uri);
+		mw.call("testtime", "3", (reply)->  { 
+			System.out.println("reply time " + reply);			
+			synchronized (cf1) {
+				cf1.complete = true;
+				cf1.notify();
+			}
+		} );
+		Thread.sleep(5000);;
+		assertTrue(cf1.complete);
 		mw.detach();
 	}
 	
 	@Test
 	public void testCallsInOrder() throws Exception {
+		
+		Timber.i("\n\nSTARTING TEST\\n\n");
+		
 		URI uri = getTestURI();
 		MidWay.useThreads = true;
 		MidWay mw = new MidWay(uri);
-		Boolean complete = false;
-		Object waitobj = new Object();
+		completeFlag cf1 = new completeFlag();
+		completeFlag cf2 = new completeFlag();
 
 		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
 		mw.call("testchargen", "10", (reply)->  { 
-			System.out.println("reply " + reply);
-			wake(waitobj);
+			System.out.println("reply " + reply);			
+			synchronized (cf1) {
+				cf1.complete = true;
+				cf1.notify();
+			}
 		} );
 		
-		synchronized (waitobj) {
-			if (!complete)
-				waitobj.wait(3000);
+		synchronized (cf1) {
+			if (!cf1.complete)
+				cf1.wait(3000);
 		}
+		assertTrue(cf1.complete);
 		System.out.println("complete");
-		MidWayServiceReplyListener listener =  (reply)-> System.out.println("reply " + reply);
+		
+		MidWayServiceReplyListener listener =  (reply)-> {
+			System.out.println("reply " + reply);
+			cf2.complete = true;
+		};
 		
 		mw.call("testtime", "", listener);
 				
 		synchronized (listener) {
 			listener.wait(3000);
 		}
+		assertTrue(cf2.complete);
 		System.out.println("complete");
 		
 		mw.detach();
 	}
 
-	Boolean complete = false;
 	@Test
 	public void testCallOutOfOrder() throws Exception {
-	
+		
+		Timber.i("\n\nSTARTING TEST\\n\n");
+			
 		URI uri = getTestURI();
 		MidWay.useThreads = true;
 		MidWay mw = new MidWay(uri);
-		
-		Object waitobj = new Object();
-
+		completeFlag cf1 = new completeFlag();
+		completeFlag cf2 = new completeFlag();
+	
 		MidWayServiceReplyListener listener0 =  new MidWayServiceReplyListener() {			
 			@Override
 			public void receive(MidWayReply reply) {
 				System.out.println("listener0 reply " + reply);			
-				complete = true;	
+				cf1.complete = true;	
 			}
 		};
 
 		//mw.acall("sleep1", "data", (reply)->  System.out.println(reply) );
-		mw.call("testtime", "10",  listener0);
+		mw.call("testsleep", "2",  listener0);
 		
 		Thread.sleep(2000);
 		
 		MidWayServiceReplyListener listener =  (reply)-> System.out.println("listener reply " + reply);
 		
-		mw.call("testtime", "", listener);
+		mw.call("testtime", "1", listener);
 				
 		synchronized (listener) {
 			Timber.i("Waiting on listener");
@@ -128,18 +186,19 @@ public class MidWayCallTest {
 			Timber.i("Woke on listener");			
 		}
 		
+		
 		synchronized (listener0) {
-			if (!complete) {
+			if (!cf1.complete) {
 				Timber.i("Waiting on complete %b", listener0);
 				
-				complete.wait(3000);
+				listener0.wait(3000);
 				Timber.i("Woke on complete");			
 			}  else  {
 				Timber.i("already complete");
 			}
 
 		}
-		
+		assertTrue(cf1.complete);
 		mw.detach();
 	}
 
