@@ -51,7 +51,7 @@ public class MidWayCallTest {
 		MidWay mw = new MidWay(uri);
 		completeFlag cf1 = new completeFlag();
 		completeFlag cf2 = new completeFlag();
-		MidWayServiceReplyListener listener =  (reply)-> {
+		IMidWayServiceReplyListener listener =  (reply)-> {
 			System.out.println("reply " + reply);
 			cf1.complete = true;
 		};
@@ -136,7 +136,7 @@ public class MidWayCallTest {
 		assertTrue(cf1.complete);
 		System.out.println("complete");
 		
-		MidWayServiceReplyListener listener =  (reply)-> {
+		IMidWayServiceReplyListener listener =  (reply)-> {
 			System.out.println("reply " + reply);
 			cf2.complete = true;
 		};
@@ -163,9 +163,9 @@ public class MidWayCallTest {
 		completeFlag cf1 = new completeFlag();
 		completeFlag cf2 = new completeFlag();
 	
-		MidWayServiceReplyListener listener0 =  new MidWayServiceReplyListener() {			
+		IMidWayServiceReplyListener listener0 =  new IMidWayServiceReplyListener() {			
 			@Override
-			public void receive(MidWayReply reply) {
+			public void receive(MidWayCallReply reply) {
 				System.out.println("listener0 reply " + reply);			
 				cf1.complete = true;	
 			}
@@ -176,7 +176,7 @@ public class MidWayCallTest {
 		
 		Thread.sleep(2000);
 		
-		MidWayServiceReplyListener listener =  (reply)-> System.out.println("listener reply " + reply);
+		IMidWayServiceReplyListener listener =  (reply)-> System.out.println("listener reply " + reply);
 		
 		mw.call("testtime", "1", listener);
 				

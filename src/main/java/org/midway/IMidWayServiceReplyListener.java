@@ -2,7 +2,7 @@ package org.midway;
 
 
 
-public interface  MidWayServiceReplyListener {
+public interface  IMidWayServiceReplyListener {
 
 	/**
 	 * Called when a reply to a acall is received. if the acall had the MULIPLE flag set, many
@@ -14,7 +14,7 @@ public interface  MidWayServiceReplyListener {
 	 * @param data
 	 * @param applicationReturncode 
 	 */
-	public void receive (MidWayReply reply);
+	public void receive (MidWayCallReply reply);
 	
 
 }

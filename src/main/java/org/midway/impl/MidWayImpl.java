@@ -19,9 +19,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
 
 import org.midway.MidWay;
-import org.midway.MidWayEventListener;
-import org.midway.MidWayReply;
-import org.midway.MidWayServiceReplyListener;
+import org.midway.IMidWayEventListener;
+import org.midway.MidWayCallReply;
+import org.midway.IMidWayServiceReplyListener;
 
 
 public class MidWayImpl {
@@ -145,7 +145,7 @@ public class MidWayImpl {
 	 * @throws Exception
 	 */
 	public synchronized long acall(String servicename, byte[] data,
-			MidWayServiceReplyListener listener, int flags) throws Exception {
+			IMidWayServiceReplyListener listener, int flags) throws Exception {
 		
 		long handle = 0;
 		boolean multiple = (flags & MidWay.MULTIPLE) > 0;
@@ -390,9 +390,9 @@ public class MidWayImpl {
 //		return rpl;
 //	}
 
-	HashMap<MidWayEventListener,Pattern> eventlisteners = new HashMap<MidWayEventListener, Pattern >();
+	HashMap<IMidWayEventListener,Pattern> eventlisteners = new HashMap<IMidWayEventListener, Pattern >();
 
-	public final synchronized void subscribe(Pattern regex, MidWayEventListener listener) {
+	public final synchronized void subscribe(Pattern regex, IMidWayEventListener listener) {
 
 		eventlisteners.put(listener, regex);
 		// write SUBSCRIBE message
@@ -400,7 +400,7 @@ public class MidWayImpl {
 	}
 
 
-	public final synchronized void unsubscribe(MidWayEventListener listener) {
+	public final synchronized void unsubscribe(IMidWayEventListener listener) {
 		// find listener
 		Pattern regex = eventlisteners.remove(listener);
 		// write UNSUBSCRIBE message

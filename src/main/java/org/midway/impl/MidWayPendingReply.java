@@ -3,8 +3,8 @@ package org.midway.impl;
 import java.util.ArrayList;
 
 import org.midway.MidWay;
-import org.midway.MidWayReply;
-import org.midway.MidWayServiceReplyListener;
+import org.midway.MidWayCallReply;
+import org.midway.IMidWayServiceReplyListener;
 
 /* Copyright (C) Adadz AS - All Rights Reserved
  * Unauthorized copying of this file, via any medium is strictly prohibited
@@ -21,10 +21,10 @@ public class MidWayPendingReply {
 	Integer dataTotal = null;
 	Integer appRC = null;
 	Boolean success = null;
-	MidWayServiceReplyListener listener;
+	IMidWayServiceReplyListener listener;
 	boolean more;
 
-	ArrayList<MidWayReply> readyReplies = new ArrayList<MidWayReply>();
+	ArrayList<MidWayCallReply> readyReplies = new ArrayList<MidWayCallReply>();
 
 	public boolean isReady() {
 		return success != null && dataTotal != null;
@@ -38,8 +38,8 @@ public class MidWayPendingReply {
 		more = false;
 	}
 	
-	public MidWayReply getReply() {
-		MidWayReply reply = new MidWayReply();
+	public MidWayCallReply getReply() {
+		MidWayCallReply reply = new MidWayCallReply();
 		reply.more = more;
 		reply.success = success;
 		reply.appreturncode = appRC;
@@ -77,7 +77,7 @@ public class MidWayPendingReply {
 
 	public void deliver() {
 		if ( this.listener != null) {
-			MidWayReply rpl = this.getReply();
+			MidWayCallReply rpl = this.getReply();
 			Timber.d("reply %s", rpl);
 			
 			synchronized (this.listener) {

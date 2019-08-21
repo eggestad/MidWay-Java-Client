@@ -5,9 +5,6 @@ import java.net.URI;
 import org.midway.impl.MidWayImpl;
 import org.midway.impl.Timber;
 
-
-
-
 /**
  * 
  * Main class for users of this library. Implementation is in MidWayIpml.
@@ -15,6 +12,7 @@ import org.midway.impl.Timber;
  * This library implement the client API of MidWay and is a pure java implementation. 
  * For anyone wanting to write servers you need to use the java wrapper library that uses the MidWay
  * C library.
+ * 
  * The Server methods is defined here but throws  UnsupportedOperationException. 
  * All the public classes in org.midway.* are identical to the Java wrapper library so that 
  * each library is selectable by classpath. 
@@ -170,7 +168,7 @@ public class MidWay{
 	 * @param flags TBD
 	 * @throws Exception
 	 */
-	public void call(String service, byte[] data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+	public void call(String service, byte[] data, IMidWayServiceReplyListener listener, int flags) throws Exception {		
 		driver.acall(service, data, listener, flags);
 		return ;
 	}
@@ -189,7 +187,7 @@ public class MidWay{
 	 * @param listener the call back for the reply. If null, the request is in the blind, not even failure will be reported
 	 * @throws Exception
 	 */
-	public void call(String service, byte[] data, MidWayServiceReplyListener listener) throws Exception {
+	public void call(String service, byte[] data, IMidWayServiceReplyListener listener) throws Exception {
 		call(service, data, listener, 0);
 		return; 
 	}
@@ -209,7 +207,7 @@ public class MidWay{
 	 * @param flags TBD
 	 * @throws Exception
 	 */
-	public void call(String service, String data, MidWayServiceReplyListener listener, int flags) throws Exception {		
+	public void call(String service, String data, IMidWayServiceReplyListener listener, int flags) throws Exception {		
 		call(service, data.getBytes(), listener, flags);
 		return ;
 	}
@@ -228,7 +226,7 @@ public class MidWay{
 	 * @param listener the call back for the reply. If null, the request is in the blind, not even failure will be reported
 	 * @throws Exception
 	 */
-	public void call(String service, String data, MidWayServiceReplyListener listener) throws Exception {
+	public void call(String service, String data, IMidWayServiceReplyListener listener) throws Exception {
 		call(service, data.getBytes(), listener, 0);
 		return; 
 	}
